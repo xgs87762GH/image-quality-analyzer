@@ -232,23 +232,33 @@ class CustomModel:
 - 将单文件拆分为多个模块
 - 创建Repository和Service层
 - 实现分层架构
+- 分离业务逻辑和数据访问
 
 ### 重构V2: 功能增强
-- 添加侧边栏和设置
-- 引入AI大模型分析
-- 优化图像显示（移除缩略图，直接使用原图）
+- 添加侧边栏和设置功能
+- 引入AI大模型分析（GPT-4V、Claude、Gemini、Ollama）
+- 添加自定义评估问题功能
+- 实现回收站功能（软删除）
 
 ### 重构V3: 代码优化
 - 移动AIAnalyzer到analyzers目录
 - 创建服务工厂（ServiceFactory）
-- 拆分API模块（按功能分组）
+- 拆分API模块（按功能分组：images.py, statistics.py）
 - 创建抽象接口/基类（BaseAnalyzer, BaseRepository）
+- 前端模块化重构（高内聚低耦合）
 
-### 重构V4: 文档整理
+### 重构V4: 性能优化
+- 移除缩略图功能，直接使用原图
+- 优化图片加载（懒加载）
+- 优化数据库查询
+- 改进前端模块化设计
+
+### 重构V5: 文档整理
 - 整理所有文档到docs目录
 - 按功能分类组织
 - 合并重复文档
 - 简化文档结构
+- 添加完整的API文档
 
 **详细重构内容**: 查看 [重构优化文档](./refactoring-optimization.md)
 

@@ -74,14 +74,18 @@ image-quality-analyzer/
 │
 ├── web/                     # Web界面模块（完全独立）
 │   ├── __init__.py
-│   ├── app.py               # Flask应用
-│   ├── views.py             # 视图路由
+│   ├── app.py               # Flask应用（包含图片文件服务路由）
+│   ├── views.py             # 视图路由（HTML页面）
 │   ├── api/                 # API模块（按功能拆分）
-│   │   ├── __init__.py
-│   │   ├── statistics.py   # 统计相关API
-│   │   └── images.py        # 图像相关API
+│   │   ├── __init__.py      # API蓝图注册
+│   │   ├── statistics.py   # 统计相关API (/api/stats)
+│   │   └── images.py        # 图像相关API (CRUD、搜索、删除等)
+│   ├── api_legacy.py        # 遗留API（兼容旧版本，包含AI分析等）
 │   ├── templates/           # HTML模板
-│   └── static/              # 静态文件（CSS, JS）
+│   └── static/              # 静态文件
+│       ├── css/             # 样式文件
+│       └── js/              # JavaScript文件
+│           └── modules/     # 模块化JS（高内聚低耦合设计）
 │
 ├── scripts/                 # 脚本
 │   ├── init_database.py     # 数据库初始化
@@ -313,6 +317,52 @@ tests/        → services/ → repositories/ → database/
 2. 创建对应的Repository
 3. 创建数据库迁移脚本
 
+## API路由结构
+
+### 新API模块 (web/api/)
+- `/api/images` - GET: 获取图像列表（支持分页、筛选）
+- `/api/images/<id>` - GET: 获取图像详情
+- `/api/images/search` - GET: 搜索图像
+- `/api/images/<id>/delete` - POST: 软删除图像
+- `/api/images/batch-delete` - POST: 批量删除
+- `/api/images/<id>/restore` - POST: 恢复图像
+- `/api/images/<id>/permanent-delete` - POST: 永久删除
+- `/api/trash` - GET: 获取回收站列表
+- `/api/evaluations/clear` - POST: 清理评估数据
+- `/api/stats` - GET: 获取统计信息
+
+### 图片服务路由 (web/app.py)
+- `/images/<id>/file` - GET: 提供原图文件（直接使用原图，不再生成缩略图）
+
+### 遗留API (web/api_legacy.py)
+- 包含AI分析、模型管理、自动导入等端点
+- 逐步迁移到新API模块
+
+## 前端架构
+
+### JavaScript模块化设计
+
+前端采用模块化设计，实现高内聚、低耦合：
+
+- **state.js** - 应用状态管理（单例模式）
+- **api-service.js** - API调用封装
+- **image-card.js** - 图像卡片渲染
+- **image-list-manager.js** - 图像列表管理
+- **search-manager.js** - 搜索功能
+- **selection-manager.js** - 选择功能
+- **batch-operations.js** - 批量操作
+- **analysis-manager.js** - 分析管理
+- **settings-manager.js** - 设置管理
+- **view-manager.js** - 视图管理
+- **index-manager.js** - 索引管理
+- **notification.js** - 通知系统
+
+### 模块间通信
+
+- 通过事件系统（CustomEvent）进行模块间通信
+- 通过依赖注入组合模块
+- 状态集中管理，避免数据不一致
+
 ## 测试策略
 
 - **单元测试**: `tests/` 目录
@@ -324,4 +374,6 @@ tests/        → services/ → repositories/ → database/
 - **数据库索引**: 在关键字段上创建索引
 - **批量操作**: 使用事务批量处理
 - **缓存策略**: 服务工厂使用单例模式
-- **异步处理**: 支持并发分析（可配置）
+- **并发处理**: 支持并发分析（可配置）
+- **图片加载**: 直接使用原图，支持懒加载（lazy loading）
+- **前端优化**: 模块化加载，按需初始化
