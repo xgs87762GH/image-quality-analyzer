@@ -64,7 +64,7 @@ image-quality-analyzer/
 │   ├── constants.py         # 常量定义
 │   ├── logger.py            # 日志系统
 │   ├── system_info.py       # 系统信息
-│   └── thumbnail.py         # 缩略图生成
+│   └── thumbnail.py         # 缩略图工具（已废弃，现直接使用原图）
 │
 ├── cli/                     # 命令行接口
 │   ├── __init__.py
