@@ -1,0 +1,28 @@
+# 核心依赖
+opencv-contrib-python>=4.8.0
+Pillow>=10.0.0
+numpy>=1.24.0
+
+# Web界面（可选，独立功能）
+Flask>=2.3.0
+
+# 系统信息（可选）
+psutil>=5.9.0
+
+# AI分析（可选）
+# openai>=1.0.0  # GPT-4 Vision
+# anthropic>=0.18.0  # Claude
+# google-generativeai>=0.3.0  # Gemini
+# requests>=2.31.0  # Ollama (通常已安装)
+
+# 数据库
+# SQLite3 是Python标准库，无需安装
+
+# 可选：审美评分（需要较大内存和GPU推荐）
+# torch>=2.0.0
+# transformers>=4.30.0
+
+# 注意：exiftool需要单独安装
+# Windows: 下载 https://exiftool.org/
+# macOS: brew install exiftool
+# Ubuntu/Debian: sudo apt-get install libimage-exiftool-perl

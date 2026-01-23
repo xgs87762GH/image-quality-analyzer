@@ -1,0 +1,123 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+pip-log.txt
+pip-delete-this-directory.txt
+
+# 虚拟环境
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+conda/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+.project
+.pydevproject
+.settings/
+
+# 数据库
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# 日志
+*.log
+logs/
+*.log.*
+
+# 临时文件
+*.tmp
+*.temp
+*.bak
+*.cache
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# 测试文件（保留测试代码，但忽略测试输出）
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# 项目特定
+thumbnails/
+thumbnails/**/*
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+trash/
+trash/**/*
+quality_report.csv
+*.csv
+
+# 环境变量和配置
+.env
+.env.local
+.env.*.local
+*.env
+config.local.py
+settings.local.py
+
+# 操作系统
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# 模型文件（如果很大）
+*.pth
+*.pt
+*.h5
+*.ckpt
+models/
+checkpoints/
+
+# 备份文件
+*.backup
+*.old
+*~
+
+# 压缩文件（如果包含敏感数据）
+*.zip
+*.tar.gz
+*.rar
+
+# 文档生成
+docs/_build/
+docs/.doctrees/
+site/

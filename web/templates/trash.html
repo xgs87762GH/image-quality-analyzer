@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}回收站 - Image Quality Analyzer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>回收站</h2>
+    <div class="header-actions">
+        <button onclick="batchRestore()" class="btn btn-primary" id="batchRestoreBtn" style="display: none;">
+            批量恢复
+        </button>
+        <button onclick="batchPermanentDelete()" class="btn btn-danger" id="batchPermanentDeleteBtn" style="display: none;">
+            永久删除
+        </button>
+    </div>
+</div>
+
+<div id="loading" class="loading">加载中...</div>
+<div id="imageList" class="image-grid"></div>
+<div id="pagination" class="pagination"></div>
+
+<!-- 批量操作提示 -->
+<div id="selectionInfo" class="selection-info" style="display: none;">
+    已选择 <span id="selectedCount">0</span> 个图像
+    <button onclick="clearSelection()" class="btn btn-secondary btn-sm">取消选择</button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/trash.js') }}"></script>
+{% endblock %}

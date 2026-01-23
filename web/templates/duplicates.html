@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}重复图像 - Image Quality Analyzer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>重复图像</h2>
+</div>
+
+<div id="loading" class="loading">加载中...</div>
+<div id="duplicatesContent" class="duplicates-container"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/duplicates.js') }}"></script>
+{% endblock %}
