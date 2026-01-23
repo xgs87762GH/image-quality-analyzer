@@ -209,23 +209,57 @@ async function restoreImage(imageId) {
 
 // 永久删除单个图像
 async function permanentDeleteImage(imageId) {
-    if (!confirm('确定要永久删除这个图像吗？此操作不可恢复！')) {
+    // 使用自定义确认对话框
+    let confirmed = false;
+    if (window.notificationManager && typeof window.notificationManager.confirm === 'function') {
+        confirmed = await window.notificationManager.confirm(
+            '确定要永久删除这个图像吗？\n\n此操作不可恢复，文件将被永久删除！',
+            '确认永久删除',
+            {
+                confirmText: '永久删除',
+                cancelText: '取消',
+                type: 'error'
+            }
+        );
+    } else {
+        // 降级到原生 confirm
+        confirmed = confirm('确定要永久删除这个图像吗？此操作不可恢复！');
+    }
+    
+    // 用户取消，直接返回
+    if (!confirmed) {
         return;
     }
     
+    // 用户确认后才执行删除操作
     try {
         const response = await apiRequest(`/api/images/${imageId}/permanent-delete`, {
             method: 'POST'
         });
         
         if (response.success) {
-            alert('图像已永久删除');
+            // 使用通知管理器显示成功消息
+            if (window.notificationManager) {
+                window.notificationManager.show('图像已永久删除', 'success');
+            } else {
+                alert('图像已永久删除');
+            }
             loadTrash(currentPage);
         } else {
-            alert('删除失败: ' + response.error);
+            // 使用通知管理器显示错误消息
+            if (window.notificationManager) {
+                window.notificationManager.show('删除失败: ' + (response.error || '未知错误'), 'error');
+            } else {
+                alert('删除失败: ' + response.error);
+            }
         }
     } catch (error) {
-        alert('删除失败: ' + error.message);
+        // 使用通知管理器显示错误消息
+        if (window.notificationManager) {
+            window.notificationManager.show('删除失败: ' + error.message, 'error');
+        } else {
+            alert('删除失败: ' + error.message);
+        }
     }
 }
 
@@ -260,14 +294,37 @@ async function batchRestore() {
 // 批量永久删除
 async function batchPermanentDelete() {
     if (selectedImages.size === 0) {
-        alert('请先选择要删除的图像');
+        if (window.notificationManager) {
+            window.notificationManager.show('请先选择要删除的图像', 'warning');
+        } else {
+            alert('请先选择要删除的图像');
+        }
         return;
     }
     
-    if (!confirm(`确定要永久删除选中的 ${selectedImages.size} 个图像吗？此操作不可恢复！`)) {
+    // 使用自定义确认对话框
+    let confirmed = false;
+    if (window.notificationManager && typeof window.notificationManager.confirm === 'function') {
+        confirmed = await window.notificationManager.confirm(
+            `确定要永久删除选中的 ${selectedImages.size} 个图像吗？\n\n此操作不可恢复，文件将被永久删除！`,
+            '确认批量永久删除',
+            {
+                confirmText: '永久删除',
+                cancelText: '取消',
+                type: 'error'
+            }
+        );
+    } else {
+        // 降级到原生 confirm
+        confirmed = confirm(`确定要永久删除选中的 ${selectedImages.size} 个图像吗？此操作不可恢复！`);
+    }
+    
+    // 用户取消，直接返回
+    if (!confirmed) {
         return;
     }
     
+    // 用户确认后才执行删除操作
     try {
         let successCount = 0;
         for (const imageId of selectedImages) {
@@ -281,10 +338,23 @@ async function batchPermanentDelete() {
             }
         }
         
-        alert(`成功删除 ${successCount}/${selectedImages.size} 个图像`);
+        // 使用通知管理器显示成功消息
+        if (window.notificationManager) {
+            window.notificationManager.show(
+                `成功删除 ${successCount}/${selectedImages.size} 个图像`,
+                successCount === selectedImages.size ? 'success' : 'warning'
+            );
+        } else {
+            alert(`成功删除 ${successCount}/${selectedImages.size} 个图像`);
+        }
         selectedImages.clear();
         loadTrash(currentPage);
     } catch (error) {
-        alert('批量删除失败: ' + error.message);
+        // 使用通知管理器显示错误消息
+        if (window.notificationManager) {
+            window.notificationManager.show('批量删除失败: ' + error.message, 'error');
+        } else {
+            alert('批量删除失败: ' + error.message);
+        }
     }
 }

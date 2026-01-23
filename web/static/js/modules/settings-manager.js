@@ -101,6 +101,13 @@ class SettingsManager {
             });
         }
         
+        // 加载回收站路径
+        if (typeof loadTrashDir === 'function') {
+            loadTrashDir().catch(err => {
+                console.error('[设置] 加载回收站路径失败:', err);
+            });
+        }
+        
         // 更新UI显示
         if (typeof onModelChange === 'function') {
             onModelChange();
@@ -128,10 +135,18 @@ class SettingsManager {
             ollamaModel: document.getElementById('ollamaModel')?.value || 'llama2',
             writeXmp: document.getElementById('writeXmp')?.checked !== false, // 默认启用
             evaluationQuestions: typeof getEvaluationQuestions === 'function' ? getEvaluationQuestions() : [],
-            imageDirectories: typeof getDirectories === 'function' ? getDirectories() : []
+            imageDirectories: typeof getDirectories === 'function' ? getDirectories() : [],
+            trashDir: document.getElementById('trashDir')?.value || '' // 回收站路径
         };
         
         localStorage.setItem('appSettings', JSON.stringify(settings));
+        
+        // 保存回收站路径到服务器
+        if (typeof saveTrashDir === 'function') {
+            saveTrashDir(settings.trashDir).catch(err => {
+                console.error('[设置] 保存回收站路径失败:', err);
+            });
+        }
         
         // 同步到状态
         this.state.setPerPage(settings.itemsPerPage);

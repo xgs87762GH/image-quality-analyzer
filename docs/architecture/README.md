@@ -44,7 +44,8 @@ image-quality-analyzer/
 │   ├── quality_service.py   # 质量评估服务（查询、统计、筛选）
 │   ├── auto_import_service.py # 自动导入服务（目录验证、批量导入）
 │   ├── evaluation_service.py  # 评估服务（评估问题管理）
-│   └── model_service.py     # 模型服务（AI模型管理）
+│   ├── model_service.py     # 模型服务（AI模型管理）
+│   └── trash_service.py     # 回收站服务（文件删除、恢复、跨平台支持）
 │
 ├── analyzers/               # 分析器模块
 │   ├── __init__.py
@@ -169,6 +170,7 @@ image-quality-analyzer/
 - 业务逻辑封装
 - 服务工厂模式
 - 事务管理
+- 回收站管理（TrashManager：跨平台文件删除和恢复）
 
 #### 5. 分析器层 (analyzers/)
 - 图像质量分析

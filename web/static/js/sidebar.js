@@ -241,6 +241,9 @@ function loadSettings() {
         loadEvaluationQuestions(evaluationQuestions);
     }
     
+    // 加载回收站路径
+    loadTrashDir();
+    
     // 加载目录列表（会自动验证并移除不存在的目录）
     if (typeof loadDirectories === 'function') {
         // 使用异步加载，但不阻塞
@@ -260,6 +263,91 @@ function loadSettings() {
     // 默认激活第一个tab
     if (typeof switchSettingsTab === 'function') {
         switchSettingsTab('general');
+    }
+    
+    // 确保目录管理按钮的事件监听器已绑定
+    setupDirectoryManagementButtons();
+}
+
+// 设置目录管理按钮的事件监听器
+function setupDirectoryManagementButtons() {
+    // 重新索引图片按钮 - 简化处理，与其他按钮保持一致
+    const indexBtn = document.getElementById('indexImagesFromSettingsBtn');
+    if (indexBtn && !indexBtn.dataset.listenerAttached) {
+        // 移除HTML中的onclick属性（如果存在）
+        indexBtn.removeAttribute('onclick');
+        
+        indexBtn.addEventListener('click', function(event) {
+            console.log('[目录管理] 重新索引图片按钮被点击', event);
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            
+            // 直接调用函数，不传递event对象
+            handleReindexImages();
+        }, true); // 使用捕获阶段，确保优先执行
+        
+        indexBtn.dataset.listenerAttached = 'true';
+        console.log('[目录管理] 重新索引图片按钮事件监听器已添加');
+    }
+    
+    // 为其他按钮也添加事件监听器（如果onclick不工作）
+    // 使用更精确的选择器
+    const tabData = document.getElementById('tab-data');
+    if (tabData) {
+        // 查找所有按钮
+        const allButtons = tabData.querySelectorAll('button');
+        console.log('[目录管理] 在tab-data中找到的按钮数量:', allButtons.length);
+        
+        allButtons.forEach((btn, index) => {
+            console.log(`[目录管理] 按钮${index}:`, btn.textContent, btn.onclick, btn.getAttribute('onclick'));
+            
+            // 检查按钮的onclick属性或文本内容
+            const onclickAttr = btn.getAttribute('onclick') || '';
+            const btnText = btn.textContent || '';
+            
+            if (onclickAttr.includes('selectDirectory') || btnText.includes('选择文件夹')) {
+                console.log('[目录管理] 找到selectDirectory按钮，添加事件监听器');
+                if (!btn.dataset.listenerAttached) {
+                    // 移除原有的onclick属性，使用事件监听器
+                    btn.removeAttribute('onclick');
+                    btn.addEventListener('click', function(event) {
+                        console.log('[目录管理] selectDirectory按钮被点击（通过事件监听器）', event);
+                        event.preventDefault();
+                        event.stopPropagation();
+                        event.stopImmediatePropagation();
+                        try {
+                            selectDirectory(event);
+                        } catch (error) {
+                            console.error('[目录管理] selectDirectory执行失败:', error);
+                        }
+                    }, true); // 使用捕获阶段，确保优先执行
+                    btn.dataset.listenerAttached = 'true';
+                    console.log('[目录管理] selectDirectory按钮事件监听器已添加');
+                }
+            } else if (onclickAttr.includes('addDirectoryManually') || btnText.includes('手动输入')) {
+                console.log('[目录管理] 找到addDirectoryManually按钮，添加事件监听器');
+                if (!btn.dataset.listenerAttached) {
+                    // 移除原有的onclick属性，使用事件监听器
+                    btn.removeAttribute('onclick');
+                    btn.addEventListener('click', function(event) {
+                        console.log('[目录管理] addDirectoryManually按钮被点击（通过事件监听器）', event);
+                        event.preventDefault();
+                        event.stopPropagation();
+                        event.stopImmediatePropagation();
+                        try {
+                            addDirectoryManually(event);
+                        } catch (error) {
+                            console.error('[目录管理] addDirectoryManually执行失败:', error);
+                        }
+                    }, true); // 使用捕获阶段，确保优先执行
+                    btn.dataset.listenerAttached = 'true';
+                    console.log('[目录管理] addDirectoryManually按钮事件监听器已添加');
+                }
+            }
+        });
+    } else {
+        console.warn('[目录管理] 未找到tab-data元素');
     }
 }
 
@@ -289,6 +377,10 @@ function switchSettingsTab(tabName) {
         loadDirectories().catch(err => {
             console.error('[设置] 加载目录列表失败:', err);
         });
+        // 切换到数据管理标签时，确保按钮事件监听器已绑定
+        setTimeout(() => {
+            setupDirectoryManagementButtons();
+        }, 100);
     }
 }
 
@@ -395,9 +487,18 @@ function saveSettings(event) {
             ollamaModel: document.getElementById('ollamaModel').value || 'llama2',
             writeXmp: document.getElementById('writeXmp')?.checked !== false, // 默认启用
             evaluationQuestions: typeof getEvaluationQuestions === 'function' ? getEvaluationQuestions() : [],
-            imageDirectories: typeof getDirectories === 'function' ? getDirectories() : []
+            imageDirectories: typeof getDirectories === 'function' ? getDirectories() : [],
+            trashDir: document.getElementById('trashDir')?.value || '' // 回收站路径
         };
         localStorage.setItem('appSettings', JSON.stringify(settings));
+        
+        // 保存回收站路径到服务器
+        if (typeof saveTrashDir === 'function') {
+            saveTrashDir(settings.trashDir).catch(err => {
+                console.error('[设置] 保存回收站路径失败:', err);
+            });
+        }
+        
         window.dispatchEvent(new CustomEvent('settingsUpdated', { detail: settings }));
     }
     
@@ -427,6 +528,7 @@ let editingIndex = -1;
 
 // 加载目录列表（自动验证并移除不存在的目录）
 async function loadDirectories() {
+    
     const settings = getSettings();
     directories = settings.imageDirectories || [];
     
@@ -475,147 +577,446 @@ function saveDirectories() {
     window.dispatchEvent(new CustomEvent('settingsUpdated', { detail: settings }));
 }
 
-// 索引图片（从设置页面）
-async function indexImagesFromSettings() {
+// 保留旧函数名以兼容（已废弃，使用 showIndexOptionsDialog）
+function showIndexOptionsDialogFromSettings(directories) {
+    return showIndexOptionsDialog(directories);
+}
+
+// 转义HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// 重新索引图片处理函数（重构版，简化逻辑）
+let isIndexing = false;
+
+async function handleReindexImages() {
+    console.log('[目录管理] handleReindexImages 开始执行');
+    
+    // 防止重复调用
+    if (isIndexing) {
+        console.log('[目录管理] 索引正在进行中，忽略重复调用');
+        return;
+    }
+    
     const settings = getSettings();
     const directories = settings.imageDirectories || [];
+    
+    console.log('[目录管理] 目录列表:', directories);
     
     if (directories.length === 0) {
         alert('请先添加图片源目录！');
         return;
     }
     
-    if (!confirm(`确定要索引以下目录的图片吗？\n\n${directories.join('\n')}\n\n这可能需要一些时间。`)) {
+    // 显示选项对话框
+    let indexMode;
+    try {
+        console.log('[目录管理] 准备显示对话框');
+        indexMode = await showIndexOptionsDialog(directories);
+        console.log('[目录管理] 对话框返回结果:', indexMode);
+    } catch (error) {
+        console.error('[目录管理] 对话框显示失败:', error);
+        console.error(error.stack);
         return;
     }
     
-    const button = document.getElementById('indexImagesFromSettingsBtn');
-    if (button) {
-        button.disabled = true;
-        button.innerHTML = '<span>⏳</span> 索引中...';
+    if (!indexMode) {
+        console.log('[目录管理] 用户取消了操作');
+        return; // 用户取消
     }
     
-    try {
-        const response = await fetch('/api/images/auto-import', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ directories })
-        });
+    // 设置防抖标志
+    isIndexing = true;
+    
+    const clearDatabase = indexMode === 'clear';
+    const button = document.getElementById('indexImagesFromSettingsBtn');
+    
+    // 更新按钮状态
+    if (button) {
+        // 保存原始HTML和文本内容
+        const originalHTML = button.innerHTML || '<span>🔄</span> 重新索引图片';
+        const originalDisabled = button.disabled;
         
-        if (!response.ok) {
-            throw new Error(`HTTP错误 ${response.status}`);
-        }
+        console.log('[目录管理] 保存按钮原始状态:', { html: originalHTML, disabled: originalDisabled });
         
-        const data = await response.json();
+        button.disabled = true;
+        button.innerHTML = '<span>⏳</span> 索引中...';
         
-        if (data.success) {
-            const message = `索引完成！\n\n新增: ${data.total || 0} 张图片\n已存在: ${data.existing || 0} 张图片`;
-            alert(message);
-        } else {
-            alert('索引失败: ' + (data.error || '未知错误'));
+        try {
+            const response = await fetch('/api/images/auto-import', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    directories,
+                    clear_database: clearDatabase
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP错误 ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                const message = clearDatabase 
+                    ? `索引完成！\n\n新增: ${data.total || 0} 张图片`
+                    : `索引完成！\n\n新增: ${data.new_count || 0} 张图片\n已存在: ${data.existing_count || 0} 张图片\n删除: ${data.deleted_count || 0} 张不存在记录`;
+                alert(message);
+            } else {
+                alert('索引失败: ' + (data.error || '未知错误'));
+            }
+        } catch (error) {
+            console.error('[设置] 索引失败:', error);
+            alert('索引失败: ' + error.message);
+        } finally {
+            // 恢复按钮状态
+            console.log('[目录管理] 恢复按钮状态');
+            isIndexing = false;
+            if (button) {
+                button.disabled = originalDisabled;
+                button.innerHTML = originalHTML;
+                console.log('[目录管理] 按钮状态已恢复:', button.innerHTML);
+            }
         }
-    } catch (error) {
-        console.error('[设置] 索引失败:', error);
-        alert('索引失败: ' + error.message);
-    } finally {
-        if (button) {
-            button.disabled = false;
-            button.innerHTML = '<span>🔍</span> 重新索引图片';
-        }
+    } else {
+        console.error('[目录管理] 未找到按钮元素');
     }
 }
 
-// 渲染目录列表
+// 显示索引选项对话框（简化版）
+function showIndexOptionsDialog(directories) {
+    console.log('[目录管理] showIndexOptionsDialog 被调用，目录数量:', directories.length);
+    
+    return new Promise((resolve) => {
+        // 创建遮罩层
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay show'; // 添加 show 类以显示遮罩
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; opacity: 1 !important;'; // 强制显示
+        
+        console.log('[目录管理] 遮罩层已创建');
+        
+        // 创建对话框内容
+        const dialog = document.createElement('div');
+        dialog.className = 'modal-content';
+        dialog.style.cssText = 'background: white; padding: 2rem; border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; z-index: 10001; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);';
+        
+        // 标题
+        const title = document.createElement('h3');
+        title.style.marginTop = '0';
+        title.textContent = '重新索引图片';
+        dialog.appendChild(title);
+        
+        // 说明
+        const desc = document.createElement('p');
+        desc.style.margin = '1rem 0';
+        desc.textContent = '将扫描以下目录：';
+        dialog.appendChild(desc);
+        
+        // 目录列表
+        const ul = document.createElement('ul');
+        ul.style.cssText = 'margin: 1rem 0; padding-left: 1.5rem; max-height: 200px; overflow-y: auto;';
+        directories.forEach(dir => {
+            const li = document.createElement('li');
+            li.style.cssText = 'margin: 0.5rem 0; word-break: break-all;';
+            li.textContent = dir;
+            ul.appendChild(li);
+        });
+        dialog.appendChild(ul);
+        
+        // 选项容器
+        const optionsDiv = document.createElement('div');
+        optionsDiv.style.cssText = 'margin: 1.5rem 0; padding: 1rem; background: #f5f5f5; border-radius: 4px;';
+        
+        // 清空数据库选项
+        const clearLabel = document.createElement('label');
+        clearLabel.style.cssText = 'display: flex; align-items: center; cursor: pointer;';
+        const clearRadio = document.createElement('input');
+        clearRadio.type = 'radio';
+        clearRadio.name = 'indexMode';
+        clearRadio.value = 'clear';
+        clearRadio.style.marginRight = '0.5rem';
+        const clearText = document.createElement('span');
+        clearText.innerHTML = '<strong>清空数据库后重新加载</strong><br><small style="color: #666;">将删除所有现有数据，然后重新扫描并导入图片</small>';
+        clearLabel.appendChild(clearRadio);
+        clearLabel.appendChild(clearText);
+        optionsDiv.appendChild(clearLabel);
+        
+        // 合并数据选项
+        const mergeLabel = document.createElement('label');
+        mergeLabel.style.cssText = 'display: flex; align-items: flex-start; cursor: pointer; margin-top: 1rem;';
+        const mergeRadio = document.createElement('input');
+        mergeRadio.type = 'radio';
+        mergeRadio.name = 'indexMode';
+        mergeRadio.value = 'merge';
+        mergeRadio.checked = true;
+        mergeRadio.style.cssText = 'margin-right: 0.5rem; margin-top: 0.25rem;';
+        const mergeText = document.createElement('span');
+        mergeText.innerHTML = '<strong>合并数据（推荐）</strong><br><small style="color: #666;">保留已存在的数据，添加新图片，删除源文件不存在的记录</small>';
+        mergeLabel.appendChild(mergeRadio);
+        mergeLabel.appendChild(mergeText);
+        optionsDiv.appendChild(mergeLabel);
+        
+        dialog.appendChild(optionsDiv);
+        
+        // 按钮容器
+        const buttonsDiv = document.createElement('div');
+        buttonsDiv.style.cssText = 'display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;';
+        
+        // 取消按钮
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn btn-secondary';
+        cancelBtn.textContent = '取消';
+        cancelBtn.type = 'button'; // 防止表单提交
+        cancelBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('[目录管理] 用户点击取消按钮');
+            overlay.remove();
+            resolve(null);
+        });
+        buttonsDiv.appendChild(cancelBtn);
+        
+        // 确定按钮
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'btn btn-primary';
+        confirmBtn.textContent = '确定';
+        confirmBtn.type = 'button'; // 防止表单提交
+        confirmBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('[目录管理] 用户点击确定按钮');
+            const selectedRadio = dialog.querySelector('input[name="indexMode"]:checked');
+            if (selectedRadio) {
+                const mode = selectedRadio.value;
+                console.log('[目录管理] 选择的模式:', mode);
+                overlay.remove();
+                resolve(mode);
+            } else {
+                console.error('[目录管理] 未找到选中的单选按钮');
+                alert('请选择一个选项！');
+            }
+        });
+        buttonsDiv.appendChild(confirmBtn);
+        
+        dialog.appendChild(buttonsDiv);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        
+        console.log('[目录管理] 对话框已添加到DOM');
+        
+        // 点击遮罩关闭
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                console.log('[目录管理] 用户点击遮罩，关闭对话框');
+                overlay.remove();
+                resolve(null);
+            }
+        });
+        
+        // 阻止对话框内容区域的点击事件冒泡
+        dialog.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
+        // 确保对话框可见
+        setTimeout(() => {
+            if (overlay.parentNode) {
+                console.log('[目录管理] 对话框已显示');
+                // 强制显示（防止CSS覆盖）
+                overlay.style.opacity = '1';
+                overlay.style.display = 'flex';
+                console.log('[目录管理] 对话框样式:', {
+                    opacity: overlay.style.opacity,
+                    display: overlay.style.display,
+                    zIndex: overlay.style.zIndex,
+                    className: overlay.className
+                });
+            } else {
+                console.error('[目录管理] 对话框未正确添加到DOM');
+            }
+        }, 100);
+    });
+}
+
+// 保留旧函数名以兼容（已废弃，使用 handleReindexImages）
+async function indexImagesFromSettings(event) {
+    console.warn('[目录管理] indexImagesFromSettings 已废弃，请使用 handleReindexImages');
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    await handleReindexImages();
+}
+
+// 渲染目录列表（使用DOM API，避免innerHTML）
 function renderDirectories() {
     const listContainer = document.getElementById('directoriesList');
     if (!listContainer) return;
     
+    // 清空容器
+    listContainer.innerHTML = '';
+    
     if (directories.length === 0) {
-        listContainer.innerHTML = '<div class="directories-list-empty">暂无目录，点击"添加目录"按钮添加</div>';
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'directories-list-empty';
+        emptyDiv.textContent = '暂无目录，点击"添加目录"按钮添加';
+        listContainer.appendChild(emptyDiv);
         return;
     }
     
-    listContainer.innerHTML = directories.map((dir, index) => {
+    // 为每个目录创建DOM元素
+    directories.forEach((dir, index) => {
         const isEditing = editingIndex === index;
-        return `
-            <div class="directory-item ${isEditing ? 'editing' : ''}" data-index="${index}">
-                <input type="text" 
-                       class="directory-item-input" 
-                       value="${escapeHtml(dir)}" 
-                       ${isEditing ? '' : 'readonly'}
-                       onchange="updateDirectory(${index}, this.value)"
-                       placeholder="输入目录路径，例如：F:\\图片\\2024">
-                <div class="directory-item-actions">
-                    ${isEditing ? `
-                        <button type="button" class="directory-item-btn directory-item-btn-save" onclick="saveDirectory(${index})">
-                            <span>✓</span> 保存
-                        </button>
-                        <button type="button" class="directory-item-btn directory-item-btn-cancel" onclick="cancelEditDirectory()">
-                            <span>✗</span> 取消
-                        </button>
-                    ` : `
-                        <button type="button" class="directory-item-btn directory-item-btn-edit" onclick="editDirectory(${index})">
-                            <span>✏️</span> 编辑
-                        </button>
-                        <button type="button" class="directory-item-btn directory-item-btn-delete" onclick="deleteDirectory(${index})">
-                            <span>🗑️</span> 删除
-                        </button>
-                    `}
-                </div>
-            </div>
-        `;
-    }).join('');
+        
+        // 创建目录项容器
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `directory-item ${isEditing ? 'editing' : ''}`;
+        itemDiv.dataset.index = index.toString();
+        
+        // 创建输入框
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'directory-item-input';
+        input.value = dir;
+        input.readOnly = !isEditing;
+        input.placeholder = '输入目录路径，例如：F:\\图片\\2024';
+        input.addEventListener('change', function() {
+            updateDirectory(index, this.value);
+        });
+        itemDiv.appendChild(input);
+        
+        // 创建操作按钮容器
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'directory-item-actions';
+        
+        if (isEditing) {
+            // 编辑模式：保存和取消按钮
+            const saveBtn = document.createElement('button');
+            saveBtn.type = 'button';
+            saveBtn.className = 'directory-item-btn directory-item-btn-save';
+            const saveIcon = document.createElement('span');
+            saveIcon.textContent = '✓';
+            saveBtn.appendChild(saveIcon);
+            saveBtn.appendChild(document.createTextNode(' 保存'));
+            saveBtn.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                saveDirectory(index);
+            });
+            actionsDiv.appendChild(saveBtn);
+            
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'directory-item-btn directory-item-btn-cancel';
+            const cancelIcon = document.createElement('span');
+            cancelIcon.textContent = '✗';
+            cancelBtn.appendChild(cancelIcon);
+            cancelBtn.appendChild(document.createTextNode(' 取消'));
+            cancelBtn.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                cancelEditDirectory();
+            });
+            actionsDiv.appendChild(cancelBtn);
+        } else {
+            // 非编辑模式：编辑和删除按钮
+            const editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.className = 'directory-item-btn directory-item-btn-edit';
+            const editIcon = document.createElement('span');
+            editIcon.textContent = '✏️';
+            editBtn.appendChild(editIcon);
+            editBtn.appendChild(document.createTextNode(' 编辑'));
+            editBtn.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                editDirectory(index);
+            });
+            actionsDiv.appendChild(editBtn);
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'directory-item-btn directory-item-btn-delete';
+            const deleteIcon = document.createElement('span');
+            deleteIcon.textContent = '🗑️';
+            deleteBtn.appendChild(deleteIcon);
+            deleteBtn.appendChild(document.createTextNode(' 删除'));
+            deleteBtn.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                deleteDirectory(index);
+            });
+            actionsDiv.appendChild(deleteBtn);
+        }
+        
+        itemDiv.appendChild(actionsDiv);
+        listContainer.appendChild(itemDiv);
+    });
 }
 
 // 选择文件夹（使用文件选择对话框或 File System Access API）
-async function selectDirectory() {
-    // 优先使用 File System Access API（如果浏览器支持）
-    if (window.showDirectoryPicker) {
-        try {
-            const directoryHandle = await window.showDirectoryPicker();
-            const directoryName = directoryHandle.name;
-            
-            // 由于安全限制，无法直接获取完整路径
-            // 提示用户输入完整路径
-            const userInput = prompt(
-                `已选择文件夹: "${directoryName}"\n\n` +
-                `由于浏览器安全限制，请手动输入完整目录路径。\n\n` +
-                `例如：F:\\图片\\2024 或 C:\\Users\\用户名\\Pictures\n\n` +
-                `提示：您可以从文件资源管理器的地址栏复制完整路径。`,
-                ''
-            );
-            
-            if (userInput && userInput.trim()) {
-                const directoryPath = userInput.trim();
+async function selectDirectory(event) {
+    console.log('[目录管理] selectDirectory 被调用', event);
+    try {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        // 优先使用 File System Access API（如果浏览器支持）
+        if (window.showDirectoryPicker) {
+            try {
+                const directoryHandle = await window.showDirectoryPicker();
+                const directoryName = directoryHandle.name;
                 
-                // 检查是否已存在
-                if (directories.includes(directoryPath)) {
-                    alert('该目录已存在');
-                    return;
+                // 由于安全限制，无法直接获取完整路径
+                // 提示用户输入完整路径
+                const userInput = prompt(
+                    `已选择文件夹: "${directoryName}"\n\n` +
+                    `由于浏览器安全限制，请手动输入完整目录路径。\n\n` +
+                    `例如：F:\\图片\\2024 或 C:\\Users\\用户名\\Pictures\n\n` +
+                    `提示：您可以从文件资源管理器的地址栏复制完整路径。`,
+                    ''
+                );
+                
+                if (userInput && userInput.trim()) {
+                    const directoryPath = userInput.trim();
+                    
+                    // 检查是否已存在
+                    if (directories.includes(directoryPath)) {
+                        alert('该目录已存在');
+                        return;
+                    }
+                    
+                    directories.push(directoryPath);
+                    saveDirectories();
+                    renderDirectories();
                 }
-                
-                directories.push(directoryPath);
-                saveDirectories();
-                renderDirectories();
+            } catch (error) {
+                // 用户取消了选择
+                if (error.name !== 'AbortError') {
+                    console.error('选择文件夹失败:', error);
+                    alert('选择文件夹失败: ' + error.message);
+                }
             }
-        } catch (error) {
-            // 用户取消了选择
-            if (error.name !== 'AbortError') {
-                console.error('选择文件夹失败:', error);
-                alert('选择文件夹失败: ' + error.message);
-            }
-        }
-    } else {
-        // 降级方案：使用传统的文件选择输入框
-        const picker = document.getElementById('directoryPicker');
-        if (picker) {
-            picker.click();
         } else {
-            // 如果输入框不存在，提示用户手动输入
-            addDirectoryManually();
+            // 降级方案：使用传统的文件选择输入框
+            const picker = document.getElementById('directoryPicker');
+            if (picker) {
+                picker.click();
+            } else {
+                // 如果输入框不存在，提示用户手动输入
+                addDirectoryManually(event);
+            }
         }
+    } catch (error) {
+        console.error('[目录管理] selectDirectory执行出错:', error);
+        alert('选择文件夹时发生错误: ' + error.message);
     }
 }
 
@@ -704,17 +1105,27 @@ async function handleDirectorySelected(event) {
 }
 
 // 手动添加目录（保留原有功能）
-function addDirectoryManually() {
-    const newDir = prompt('请输入目录路径：\n例如：F:\\图片\\2024');
-    if (newDir && newDir.trim()) {
-        // 检查是否已存在
-        if (directories.includes(newDir.trim())) {
-            alert('该目录已存在');
-            return;
+function addDirectoryManually(event) {
+    console.log('[目录管理] addDirectoryManually 被调用', event);
+    try {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
         }
-        directories.push(newDir.trim());
-        saveDirectories();
-        renderDirectories();
+        const newDir = prompt('请输入目录路径：\n例如：F:\\图片\\2024');
+        if (newDir && newDir.trim()) {
+            // 检查是否已存在
+            if (directories.includes(newDir.trim())) {
+                alert('该目录已存在');
+                return;
+            }
+            directories.push(newDir.trim());
+            saveDirectories();
+            renderDirectories();
+        }
+    } catch (error) {
+        console.error('[目录管理] addDirectoryManually执行出错:', error);
+        alert('添加目录时发生错误: ' + error.message);
     }
 }
 
@@ -815,4 +1226,161 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// 确保函数在全局作用域中可用（用于HTML onclick）
+// 在全局作用域定义的function会自动成为window的属性，但为了确保兼容性，显式绑定
+// 注意：这些函数已经在全局作用域定义，所以直接绑定即可
+// 由于函数声明会被提升（hoisting），所以可以安全地在文件末尾绑定
+// 使用DOMContentLoaded确保在DOM加载后绑定
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof window !== 'undefined') {
+        // 直接绑定函数（函数声明会被提升，所以这里可以安全访问）
+        window.selectDirectory = selectDirectory;
+        window.addDirectoryManually = addDirectoryManually;
+        window.indexImagesFromSettings = indexImagesFromSettings;
+        window.handleDirectorySelected = handleDirectorySelected;
+        window.editDirectory = editDirectory;
+        window.saveDirectory = saveDirectory;
+        window.cancelEditDirectory = cancelEditDirectory;
+        window.deleteDirectory = deleteDirectory;
+        window.updateDirectory = updateDirectory;
+        
+        console.log('[目录管理] 函数已绑定到window对象', {
+            selectDirectory: typeof window.selectDirectory,
+            addDirectoryManually: typeof window.addDirectoryManually,
+            indexImagesFromSettings: typeof window.indexImagesFromSettings
+        });
+        
+        // 测试：尝试直接调用函数
+        console.log('[目录管理] 测试函数绑定:', {
+            selectDirectory: window.selectDirectory === selectDirectory,
+            addDirectoryManually: window.addDirectoryManually === addDirectoryManually,
+            indexImagesFromSettings: window.indexImagesFromSettings === indexImagesFromSettings
+        });
+    }
+});
+
+// 同时立即绑定（不等待DOMContentLoaded），因为函数声明会被提升
+if (typeof window !== 'undefined') {
+    window.selectDirectory = selectDirectory;
+    window.addDirectoryManually = addDirectoryManually;
+    window.indexImagesFromSettings = indexImagesFromSettings;
+    window.handleDirectorySelected = handleDirectorySelected;
+    window.editDirectory = editDirectory;
+    window.saveDirectory = saveDirectory;
+    window.cancelEditDirectory = cancelEditDirectory;
+    window.deleteDirectory = deleteDirectory;
+    window.updateDirectory = updateDirectory;
+}
+
+// 加载回收站路径
+async function loadTrashDir() {
+    try {
+        const response = await fetch('/api/settings/trash-dir');
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            const trashDirInput = document.getElementById('trashDir');
+            if (trashDirInput) {
+                trashDirInput.value = result.data.trash_dir || '';
+            }
+        }
+    } catch (error) {
+        console.error('[设置] 加载回收站路径失败:', error);
+    }
+}
+
+// 保存回收站路径
+async function saveTrashDir(trashDir) {
+    try {
+        const response = await fetch('/api/settings/trash-dir', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                trash_dir: trashDir
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('[设置] 回收站路径已保存:', result.data.trash_dir);
+        } else {
+            console.error('[设置] 保存回收站路径失败:', result.error);
+        }
+    } catch (error) {
+        console.error('[设置] 保存回收站路径失败:', error);
+    }
+}
+
+// 选择回收站目录
+function selectTrashDirectory(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    const trashDirPicker = document.getElementById('trashDirPicker');
+    if (trashDirPicker) {
+        trashDirPicker.click();
+    }
+}
+
+// 处理回收站目录选择
+function handleTrashDirectorySelected(event) {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+        // 获取第一个文件的路径（目录选择器会返回目录中的文件）
+        const firstFile = files[0];
+        
+        // 尝试多种方式获取路径
+        let directoryPath = null;
+        
+        // 方法1: 使用 path 属性（Chrome/Edge）
+        if (firstFile.path) {
+            const pathParts = firstFile.path.split(/[/\\]/);
+            if (pathParts.length > 1) {
+                pathParts.pop(); // 移除文件名
+                directoryPath = pathParts.join('/');
+            }
+        }
+        // 方法2: 使用 webkitRelativePath（Firefox）
+        else if (firstFile.webkitRelativePath) {
+            const pathParts = firstFile.webkitRelativePath.split(/[/\\]/);
+            if (pathParts.length > 1) {
+                pathParts.pop(); // 移除文件名
+                directoryPath = pathParts.join('/');
+            }
+        }
+        
+        // 如果仍然无法获取路径，提示用户手动输入
+        if (!directoryPath) {
+            const trashDirInput = document.getElementById('trashDir');
+            if (trashDirInput) {
+                const manualPath = prompt('无法自动获取目录路径，请手动输入完整路径：');
+                if (manualPath) {
+                    trashDirInput.value = manualPath.trim();
+                }
+            }
+        } else {
+            const trashDirInput = document.getElementById('trashDir');
+            if (trashDirInput) {
+                trashDirInput.value = directoryPath;
+            }
+        }
+    }
+    
+    // 清空文件选择器，以便下次可以再次选择同一个目录
+    event.target.value = '';
+}
+
+// 导出函数到全局
+if (typeof window !== 'undefined') {
+    window.loadTrashDir = loadTrashDir;
+    window.saveTrashDir = saveTrashDir;
+    window.selectTrashDirectory = selectTrashDirectory;
+    window.handleTrashDirectorySelected = handleTrashDirectorySelected;
 }

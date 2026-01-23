@@ -182,3 +182,20 @@ class QualityRepository:
         )
         row = cursor.fetchone()
         return dict(row) if row else {}
+    
+    def delete_by_image_id(self, image_id: int) -> bool:
+        """
+        根据图像ID删除质量评估记录
+        
+        Args:
+            image_id: 图像ID
+            
+        Returns:
+            是否删除成功
+        """
+        with self.db.transaction() as conn:
+            cursor = conn.execute(
+                f"DELETE FROM {QualityAssessment.TABLE_NAME} WHERE image_id = ?",
+                (image_id,)
+            )
+            return cursor.rowcount > 0

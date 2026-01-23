@@ -92,7 +92,27 @@
         }
     };
     window.deleteImage = async (imageId) => {
-        if (!confirm('确定要删除这张图像吗？')) return;
+        // 使用自定义确认对话框
+        let confirmed = false;
+        if (window.notificationManager && typeof window.notificationManager.confirm === 'function') {
+            confirmed = await window.notificationManager.confirm(
+                '确定要删除这张图像吗？\n\n图像将被移动到回收站，可以从回收站恢复。',
+                '确认删除',
+                {
+                    confirmText: '删除',
+                    cancelText: '取消',
+                    type: 'warning'
+                }
+            );
+        } else {
+            // 降级到原生 confirm
+            confirmed = confirm('确定要删除这张图像吗？\n\n图像将被移动到回收站，可以从回收站恢复。');
+        }
+        
+        if (!confirmed) {
+            return; // 用户点击了取消，直接返回
+        }
+        
         try {
             await apiService.deleteImage(imageId);
             imageListManager.loadImages();

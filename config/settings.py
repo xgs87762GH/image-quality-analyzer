@@ -42,10 +42,41 @@ class LoggingConfig:
     backup_count: int = 5
 
 
+def _get_default_trash_dir() -> str:
+    """
+    获取默认回收站目录路径
+    
+    默认：用户目录/ImageQualityAnalyzer/Trash
+    例如：C:/Users/用户名/ImageQualityAnalyzer/Trash
+    
+    Returns:
+        回收站目录路径（字符串）
+    """
+    # 获取用户主目录
+    user_home = Path.home()
+    
+    # 项目名称（规范命名）
+    project_name = "ImageQualityAnalyzer"
+    trash_folder_name = "Trash"
+    
+    # 构建默认路径
+    default_path = user_home / project_name / trash_folder_name
+    
+    # 确保目录存在
+    default_path.mkdir(parents=True, exist_ok=True)
+    
+    return str(default_path.absolute())
+
+
 @dataclass
 class TrashConfig:
-    """回收站配置"""
-    trash_dir: str = "trash"
+    """
+    回收站配置
+    
+    默认路径：用户目录下的 ImageQualityAnalyzer/Trash
+    可以通过环境变量 TRASH_DIR 自定义
+    """
+    trash_dir: str = "trash"  # 默认值，在 Settings.__post_init__ 中会被替换为默认路径
     preserve_structure: bool = True  # 保留原目录结构
 
 
@@ -64,20 +95,54 @@ class Settings:
     ])
     
     def __post_init__(self):
-        """初始化后处理"""
-        # 确保目录存在
+        """
+        初始化后处理
+        
+        确保所有必要的目录存在：
+        - 数据库目录
+        - 日志目录
+        - 回收站目录（如果不存在则创建）
+        
+        注意：此方法在日志系统初始化之前调用，不能使用 get_logger()
+        """
+        # 确保数据库目录存在
         db_dir = Path(self.database.db_path).parent
         db_dir.mkdir(parents=True, exist_ok=True)
         
+        # 确保日志目录存在
         log_dir = Path(self.logging.log_dir)
         log_dir.mkdir(parents=True, exist_ok=True)
         
+        # 确保回收站目录存在（如果不存在则创建）
+        # 如果使用默认值 "trash"，则替换为用户目录下的默认路径
+        if self.trash.trash_dir == "trash":
+            try:
+                self.trash.trash_dir = _get_default_trash_dir()
+            except Exception:
+                # 如果获取失败，保持使用项目目录下的 trash
+                pass
+        
         trash_dir = Path(self.trash.trash_dir)
-        trash_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            trash_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            # 如果创建失败，使用项目目录下的trash作为降级方案
+            fallback_trash_dir = Path("trash")
+            fallback_trash_dir.mkdir(parents=True, exist_ok=True)
+            self.trash.trash_dir = str(fallback_trash_dir.absolute())
     
     @classmethod
     def from_env(cls) -> 'Settings':
-        """从环境变量加载配置"""
+        """
+        从环境变量加载配置
+        
+        支持的环境变量：
+        - DB_PATH: 数据库路径
+        - USE_AESTHETIC: 是否使用美学分析
+        - EXIFTOOL_PATH: ExifTool路径
+        - LOG_LEVEL: 日志级别
+        - TRASH_DIR: 回收站目录路径（自定义）
+        """
         settings = cls()
         
         # 数据库配置
@@ -95,6 +160,14 @@ class Settings:
         # 日志配置
         if log_level := os.getenv('LOG_LEVEL'):
             settings.logging.level = log_level
+        
+        # 回收站配置（支持自定义路径）
+        if trash_dir := os.getenv('TRASH_DIR'):
+            # 使用环境变量指定的路径
+            custom_trash_dir = Path(trash_dir)
+            # 确保目录存在
+            custom_trash_dir.mkdir(parents=True, exist_ok=True)
+            settings.trash.trash_dir = str(custom_trash_dir.absolute())
         
         return settings
 

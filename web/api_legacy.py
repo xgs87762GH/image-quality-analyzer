@@ -439,6 +439,84 @@ def get_system_info():
         }), 500
 
 
+@api_bp.route('/settings/trash-dir', methods=['GET'])
+def get_trash_dir():
+    """获取回收站路径"""
+    try:
+        from config.settings import get_settings
+        settings = get_settings()
+        return jsonify({
+            'success': True,
+            'data': {
+                'trash_dir': settings.trash.trash_dir
+            }
+        })
+    except Exception as e:
+        from utils.logger import get_logger
+        logger = get_logger()
+        logger.error(f"获取回收站路径失败: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/settings/trash-dir', methods=['POST'])
+def set_trash_dir():
+    """设置回收站路径"""
+    try:
+        from pathlib import Path
+        from config.settings import get_settings, set_settings
+        from utils.logger import get_logger
+        
+        logger = get_logger()
+        data = request.get_json() or {}
+        trash_dir = data.get('trash_dir', '').strip()
+        
+        settings = get_settings()
+        
+        # 如果为空，使用默认路径
+        if not trash_dir:
+            from config.settings import _get_default_trash_dir
+            trash_dir = _get_default_trash_dir()
+            logger.info(f"[设置] 使用默认回收站路径: {trash_dir}")
+        else:
+            # 验证路径
+            trash_path = Path(trash_dir)
+            try:
+                # 确保目录存在
+                trash_path.mkdir(parents=True, exist_ok=True)
+                trash_dir = str(trash_path.absolute())
+                logger.info(f"[设置] 设置回收站路径: {trash_dir}")
+            except Exception as e:
+                logger.error(f"[设置] 创建回收站目录失败: {trash_dir}, 错误: {e}", exc_info=True)
+                return jsonify({
+                    'success': False,
+                    'error': f'无法创建回收站目录: {e}'
+                }), 400
+        
+        # 更新设置
+        settings.trash.trash_dir = trash_dir
+        
+        # 保存到环境变量（通过设置全局配置）
+        set_settings(settings)
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'trash_dir': trash_dir
+            }
+        })
+    except Exception as e:
+        from utils.logger import get_logger
+        logger = get_logger()
+        logger.error(f"设置回收站路径失败: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @api_bp.route('/models/status', methods=['GET'])
 def get_models_status():
     """获取模型状态"""
@@ -1069,17 +1147,25 @@ def auto_import_images():
         
         data = request.get_json() or {}
         directories = data.get('directories', [])
+        clear_database = data.get('clear_database', False)
         
         # 使用服务层处理，静默模式（不输出详细信息）
         service = AutoImportService()
-        result = service.import_from_directories(directories, silent=True)
+        result = service.import_from_directories(
+            directories, 
+            silent=True,
+            clear_database=clear_database
+        )
         
         return jsonify({
             'success': result['success'],
             'message': result.get('message', ''),
             'total': result.get('total', 0),
             'success_count': result.get('success_count', 0),
-            'failed_count': result.get('failed_count', 0)
+            'failed_count': result.get('failed_count', 0),
+            'new_count': result.get('new_count', 0),
+            'existing_count': result.get('existing_count', 0),
+            'deleted_count': result.get('deleted_count', 0)
         })
     except Exception as e:
         from utils.logger import get_logger

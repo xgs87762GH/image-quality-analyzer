@@ -284,13 +284,36 @@ def search_images():
 
 @api_bp.route('/images/<int:image_id>/delete', methods=['POST'])
 def delete_image(image_id: int):
-    """删除图像（软删除，移动到回收站）"""
+    """
+    删除图像（软删除，移动到回收站）
+    参考图片管理软件的删除逻辑：将文件从原文件夹移动到回收站
+    """
     try:
+        from utils.logger import get_logger
+        logger = get_logger()
+        
         db = get_db()
         image_repo = ImageRepository(db)
+        
+        # 检查图像是否存在
+        image = image_repo.find_by_id(image_id)
+        if not image:
+            return jsonify({
+                'success': False,
+                'error': '图像不存在'
+            }), 404
+        
+        if image.deleted_at:
+            return jsonify({
+                'success': False,
+                'error': '图像已被删除'
+            }), 400
+        
+        # 执行软删除（移动文件到回收站）
         success = image_repo.soft_delete(image_id)
         
         if success:
+            logger.info(f"[删除] 图像已移动到回收站: image_id={image_id}")
             return jsonify({
                 'success': True,
                 'message': '图像已移动到回收站'
@@ -298,9 +321,12 @@ def delete_image(image_id: int):
         else:
             return jsonify({
                 'success': False,
-                'error': '图像不存在或已被删除'
-            }), 404
+                'error': '删除失败'
+            }), 500
     except Exception as e:
+        from utils.logger import get_logger
+        logger = get_logger()
+        logger.error(f"[删除] 删除图像失败: image_id={image_id}, 错误: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': str(e)
@@ -309,8 +335,14 @@ def delete_image(image_id: int):
 
 @api_bp.route('/images/batch-delete', methods=['POST'])
 def batch_delete_images():
-    """批量删除图像"""
+    """
+    批量删除图像（软删除，移动到回收站）
+    参考图片管理软件的删除逻辑：将文件从原文件夹移动到回收站
+    """
     try:
+        from utils.logger import get_logger
+        logger = get_logger()
+        
         data = request.get_json()
         image_ids = data.get('image_ids', [])
         
@@ -323,16 +355,37 @@ def batch_delete_images():
         db = get_db()
         image_repo = ImageRepository(db)
         deleted_count = 0
+        failed_count = 0
+        errors = []
+        
         for image_id in image_ids:
-            if image_repo.soft_delete(image_id):
-                deleted_count += 1
+            try:
+                if image_repo.soft_delete(image_id):
+                    deleted_count += 1
+                else:
+                    failed_count += 1
+                    errors.append(f"图像 {image_id} 不存在或已被删除")
+            except Exception as e:
+                failed_count += 1
+                error_msg = f"图像 {image_id} 删除失败: {str(e)}"
+                errors.append(error_msg)
+                logger.error(f"[批量删除] {error_msg}", exc_info=True)
+        
+        message = f'成功删除 {deleted_count}/{len(image_ids)} 个图像'
+        if failed_count > 0:
+            message += f'，失败 {failed_count} 个'
         
         return jsonify({
-            'success': True,
-            'message': f'成功删除 {deleted_count}/{len(image_ids)} 个图像',
-            'deleted_count': deleted_count
+            'success': deleted_count > 0,
+            'message': message,
+            'deleted_count': deleted_count,
+            'failed_count': failed_count,
+            'errors': errors if errors else None
         })
     except Exception as e:
+        from utils.logger import get_logger
+        logger = get_logger()
+        logger.error(f"[批量删除] 批量删除失败: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': str(e)
@@ -366,13 +419,30 @@ def restore_image(image_id: int):
 
 @api_bp.route('/images/<int:image_id>/permanent-delete', methods=['POST'])
 def permanent_delete_image(image_id: int):
-    """永久删除图像（硬删除）"""
+    """
+    永久删除图像（硬删除）
+    参考图片管理软件的删除逻辑：删除文件 + 删除数据库记录 + 删除关联数据
+    """
     try:
+        from utils.logger import get_logger
+        logger = get_logger()
+        
         db = get_db()
         image_repo = ImageRepository(db)
+        
+        # 检查图像是否存在
+        image = image_repo.find_by_id(image_id)
+        if not image:
+            return jsonify({
+                'success': False,
+                'error': '图像不存在'
+            }), 404
+        
+        # 执行硬删除（删除文件 + 删除数据库记录）
         success = image_repo.hard_delete(image_id)
         
         if success:
+            logger.info(f"[永久删除] 图像已永久删除: image_id={image_id}")
             return jsonify({
                 'success': True,
                 'message': '图像已永久删除'
@@ -380,9 +450,12 @@ def permanent_delete_image(image_id: int):
         else:
             return jsonify({
                 'success': False,
-                'error': '图像不存在'
-            }), 404
+                'error': '删除失败'
+            }), 500
     except Exception as e:
+        from utils.logger import get_logger
+        logger = get_logger()
+        logger.error(f"[永久删除] 永久删除图像失败: image_id={image_id}, 错误: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': str(e)

@@ -86,14 +86,15 @@ class APIService {
     }
     
     /**
-     * 删除图像
+     * 删除图像（软删除，移动到回收站）
      */
     async deleteImage(imageId) {
-        const response = await fetch(`/api/images/${imageId}`, {
-            method: 'DELETE'
+        const response = await fetch(`/api/images/${imageId}/delete`, {
+            method: 'POST'
         });
         if (!response.ok) {
-            throw new Error(`HTTP错误 ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP错误 ${response.status}`);
         }
         return await response.json();
     }
@@ -147,13 +148,16 @@ class APIService {
     /**
      * 自动导入图像
      */
-    async autoImport(directories) {
+    async autoImport(directories, clearDatabase = false) {
         const response = await fetch('/api/images/auto-import', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ directories })
+            body: JSON.stringify({ 
+                directories,
+                clear_database: clearDatabase
+            })
         });
         if (!response.ok) {
             throw new Error(`HTTP错误 ${response.status}`);

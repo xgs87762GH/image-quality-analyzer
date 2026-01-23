@@ -247,13 +247,13 @@
                                         <!-- 目录列表将动态生成 -->
                                     </div>
                                     <div style="margin-top: 1rem;">
-                                        <button type="button" class="btn btn-primary btn-sm" onclick="selectDirectory()">
+                                        <button type="button" class="btn btn-primary btn-sm" onclick="selectDirectory(event)">
                                             <span>📂</span> 选择文件夹
                                         </button>
-                                        <button type="button" class="btn btn-secondary btn-sm" onclick="addDirectoryManually()" style="margin-left: 0.5rem;">
+                                        <button type="button" class="btn btn-secondary btn-sm" onclick="addDirectoryManually(event)" style="margin-left: 0.5rem;">
                                             <span>➕</span> 手动输入
                                         </button>
-                                        <button type="button" class="btn btn-info btn-sm" onclick="indexImagesFromSettings()" style="margin-left: 0.5rem;" id="indexImagesFromSettingsBtn">
+                                        <button type="button" class="btn btn-info btn-sm" style="margin-left: 0.5rem;" id="indexImagesFromSettingsBtn">
                                             <span>🔄</span> 重新索引图片
                                         </button>
                                     </div>
@@ -269,6 +269,22 @@
                                     </label>
                                     <p class="settings-hint">分析图像时自动将质量评分、评级、标签等信息写入图像的XMP元数据，兼容Adobe Lightroom、Bridge等主流图像管理软件。需要安装ExifTool工具。</p>
                                 </div>
+                                <div class="settings-item" style="margin-top: 1.5rem;">
+                                    <label class="settings-label">
+                                        <span>回收站路径</span>
+                                        <div class="settings-input-group" style="display: flex; align-items: center; gap: 0.5rem;">
+                                            <input type="text" id="trashDir" name="trashDir" 
+                                                   placeholder="默认: 用户目录/ImageQualityAnalyzer/Trash" 
+                                                   class="settings-input" style="flex: 1;">
+                                            <button type="button" class="btn btn-secondary btn-sm" onclick="selectTrashDirectory(event)" title="选择文件夹">
+                                                <span>📂</span> 选择
+                                            </button>
+                                        </div>
+                                    </label>
+                                    <p class="settings-hint">删除的图片将移动到此处。留空则使用默认路径（用户目录/ImageQualityAnalyzer/Trash）。如果目录不存在，将自动创建。</p>
+                                    <!-- 隐藏的文件选择输入框 -->
+                                    <input type="file" id="trashDirPicker" webkitdirectory directory style="display: none;" onchange="handleTrashDirectorySelected(event)">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -281,6 +297,9 @@
         </div>
     </div>
 
+    <!-- 模态框容器（用于确认对话框等） -->
+    <div id="modalContainer"></div>
+    
     <!-- 脚本 -->
     <script src="{{ url_for('static', filename='js/common.js') }}"></script>
     <script src="{{ url_for('static', filename='js/modules/notification.js') }}"></script>

@@ -2,6 +2,7 @@
 import hashlib
 from pathlib import Path
 from typing import Optional, List
+from datetime import datetime
 from PIL import Image as PILImage
 
 from database.connection import DatabaseConnection
@@ -147,22 +148,58 @@ class ImageRepository:
         return image
     
     def soft_delete(self, image_id: int) -> bool:
-        """软删除（移动到回收站文件夹，保留目录结构）"""
+        """
+        软删除（移动到回收站）
+        
+        参考 digiKam 实现方式：
+        1. 将文件移动到回收站目录（保留目录结构）
+        2. 在数据库中标记为已删除（deleted_at）
+        3. 保留原始路径信息（original_path）用于恢复
+        
+        Args:
+            image_id: 图像ID
+            
+        Returns:
+            是否删除成功
+            
+        Raises:
+            Exception: 删除失败时抛出异常
+        """
+        from utils.logger import get_logger
+        from services.trash_service import TrashManager
+        
+        logger = get_logger()
+        
+        # 查找图像
         image = self.find_by_id(image_id)
         if not image or image.deleted_at:
+            logger.warning(f"[软删除] 图像不存在或已被删除: image_id={image_id}")
             return False
         
-        from config.settings import get_settings
-        from shutil import move
-        import os
+        # 初始化回收站管理器
+        trash_manager = TrashManager()
         
-        settings = get_settings()
-        trash_dir = Path(settings.trash.trash_dir)
-        trash_dir.mkdir(parents=True, exist_ok=True)
+        # 确定要移动的文件路径
+        # 优先使用 original_path（原始位置），如果不存在则使用 file_path（当前位置）
+        source_path = None
+        if image.original_path:
+            original_path = Path(image.original_path).resolve()
+            if original_path.exists():
+                source_path = original_path
+                logger.debug(f"[软删除] 使用 original_path: {original_path}")
         
-        original_path = Path(image.original_path or image.file_path)
-        if not original_path.exists():
-            # 文件不存在，只更新数据库
+        if not source_path and image.file_path:
+            file_path = Path(image.file_path).resolve()
+            if file_path.exists():
+                source_path = file_path
+                logger.debug(f"[软删除] 使用 file_path: {file_path}")
+        
+        # 记录原始位置（用于恢复）
+        original_location = str(source_path.absolute()) if source_path else None
+        
+        if not source_path:
+            # 文件不存在，只更新数据库标记
+            logger.warning(f"[软删除] 文件不存在，仅更新数据库: image_id={image_id}, original_path={image.original_path}, file_path={image.file_path}")
             with self.db.transaction() as conn:
                 conn.execute(
                     f"""
@@ -174,49 +211,12 @@ class ImageRepository:
                 )
             return True
         
-        # 计算回收站路径（保留目录结构）
-        if settings.trash.preserve_structure:
-            # 获取相对路径（从原路径的根目录开始）
-            # 如果原路径是绝对路径，尝试找到共同根目录
-            try:
-                # 尝试从原路径中提取相对路径结构
-                # 例如：F:\照片\2024\01\image.jpg -> trash\F_\照片\2024\01\image.jpg
-                # 或者更简单：保留驱动器号和路径结构
-                path_parts = original_path.parts
-                # 移除驱动器号（Windows）或根目录（Linux）
-                if len(path_parts) > 1:
-                    # 保留从第一个目录开始的结构
-                    relative_parts = path_parts[1:] if path_parts[0].endswith(':') else path_parts
-                    # 将驱动器号转换为目录名（Windows）
-                    if path_parts[0].endswith(':'):
-                        drive_name = path_parts[0].replace(':', '_')
-                        relative_parts = [drive_name] + list(relative_parts)
-                else:
-                    relative_parts = [original_path.name]
-                
-                trash_path = trash_dir / Path(*relative_parts)
-            except Exception:
-                # 如果计算失败，使用文件名
-                trash_path = trash_dir / original_path.name
-        else:
-            # 不保留结构，直接放到回收站根目录
-            trash_path = trash_dir / original_path.name
-        
-        # 确保目标目录存在
-        trash_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # 如果目标文件已存在，添加序号
-        counter = 1
-        base_trash_path = trash_path
-        while trash_path.exists():
-            stem = base_trash_path.stem
-            suffix = base_trash_path.suffix
-            trash_path = base_trash_path.parent / f"{stem}_{counter}{suffix}"
-            counter += 1
-        
         try:
-            # 移动文件到回收站
-            move(str(original_path), str(trash_path))
+            # 使用回收站管理器移动文件
+            trash_path, saved_original_location = trash_manager.move_to_trash(
+                source_path, 
+                original_location
+            )
             
             # 更新数据库：记录新路径和原路径
             with self.db.transaction() as conn:
@@ -226,17 +226,16 @@ class ImageRepository:
                     SET file_path = ?, original_path = ?, deleted_at = ?
                     WHERE id = ?
                     """,
-                    (str(trash_path.absolute()), str(original_path.absolute()), 
+                    (str(trash_path.absolute()), saved_original_location, 
                      datetime.now().isoformat(), image_id)
                 )
             
+            logger.info(f"[软删除] 数据库已更新: image_id={image_id}, new_path={trash_path}, original_path={saved_original_location}")
             return True
-        except Exception as e:
-            # 移动失败，记录错误但不阻止删除标记
-            from utils.logger import get_logger
-            logger = get_logger()
-            logger.error(f"移动文件到回收站失败: {e}", exc_info=True)
-            # 仍然标记为删除
+            
+        except FileNotFoundError:
+            # 文件不存在，只更新数据库标记
+            logger.warning(f"[软删除] 文件不存在，仅更新数据库: image_id={image_id}")
             with self.db.transaction() as conn:
                 conn.execute(
                     f"""
@@ -247,66 +246,137 @@ class ImageRepository:
                     (datetime.now().isoformat(), image_id)
                 )
             return True
+        except Exception as e:
+            # 其他错误：记录并重新抛出
+            logger.error(f"[软删除] 删除失败: image_id={image_id}, 错误: {e}", exc_info=True)
+            raise
     
     def restore(self, image_id: int) -> bool:
-        """从回收站恢复（移回原路径）"""
+        """
+        从回收站恢复图像
+        
+        参考 digiKam 实现方式：
+        1. 将文件从回收站移回原始位置
+        2. 清除数据库中的删除标记（deleted_at = NULL）
+        3. 更新文件路径为恢复后的路径
+        
+        Args:
+            image_id: 图像ID
+            
+        Returns:
+            是否恢复成功
+            
+        Raises:
+            Exception: 恢复失败时抛出异常
+        """
+        from utils.logger import get_logger
+        from services.trash_service import TrashManager
+        
+        logger = get_logger()
+        
+        # 查找图像
         image = self.find_by_id(image_id)
         if not image or not image.deleted_at:
+            logger.warning(f"[恢复] 图像不存在或未被删除: image_id={image_id}")
             return False
         
         if not image.original_path:
-            # 没有原路径记录，无法恢复
+            logger.error(f"[恢复] 没有原始路径记录，无法恢复: image_id={image_id}")
             return False
         
-        from shutil import move
-        from config.settings import get_settings
+        # 初始化回收站管理器
+        trash_manager = TrashManager()
         
-        original_path = Path(image.original_path)
-        current_path = Path(image.file_path)
-        
-        # 确保原路径的目录存在
-        original_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # 如果原路径已存在文件，添加序号
-        counter = 1
-        base_original_path = original_path
-        while original_path.exists():
-            stem = base_original_path.stem
-            suffix = base_original_path.suffix
-            original_path = base_original_path.parent / f"{stem}_{counter}{suffix}"
-            counter += 1
+        current_path = Path(image.file_path).resolve()
+        original_path = Path(image.original_path).resolve()
         
         try:
-            # 移动文件回原路径
-            if current_path.exists():
-                move(str(current_path), str(original_path))
+            # 使用回收站管理器恢复文件
+            restored_path = trash_manager.restore_from_trash(current_path, original_path)
             
-            # 更新数据库
+            # 更新数据库：清除删除标记，更新文件路径
             with self.db.transaction() as conn:
                 conn.execute(
                     f"""
                     UPDATE {Image.TABLE_NAME}
-                    SET file_path = ?, deleted_at = NULL
+                    SET file_path = ?, original_path = ?, deleted_at = NULL
                     WHERE id = ?
                     """,
-                    (str(original_path.absolute()), image_id)
+                    (str(restored_path.absolute()), str(restored_path.absolute()), image_id)
                 )
             
+            logger.info(f"[恢复] 数据库已更新: image_id={image_id}, restored_path={restored_path}")
             return True
-        except Exception as e:
-            from utils.logger import get_logger
-            logger = get_logger()
-            logger.error(f"恢复文件失败: {e}", exc_info=True)
+            
+        except FileNotFoundError as e:
+            logger.error(f"[恢复] 文件不存在: image_id={image_id}, current_path={current_path}, 错误: {e}", exc_info=True)
+            # 即使文件不存在，也清除删除标记（可能是文件已被手动删除）
+            with self.db.transaction() as conn:
+                conn.execute(
+                    f"""
+                    UPDATE {Image.TABLE_NAME}
+                    SET deleted_at = NULL
+                    WHERE id = ?
+                    """,
+                    (image_id,)
+                )
+            logger.warning(f"[恢复] 文件不存在，仅清除删除标记: image_id={image_id}")
             return False
+        except Exception as e:
+            logger.error(f"[恢复] 恢复失败: image_id={image_id}, 错误: {e}", exc_info=True)
+            raise
     
     def hard_delete(self, image_id: int) -> bool:
-        """硬删除（永久删除）"""
+        """
+        硬删除（永久删除文件和数据库记录）
+        参考图片管理软件的删除逻辑：删除文件 + 删除数据库记录 + 删除关联数据
+        """
+        image = self.find_by_id(image_id)
+        if not image:
+            return False
+        
+        from utils.logger import get_logger
+        logger = get_logger()
+        
+        # 1. 删除物理文件（如果存在）
+        file_paths_to_delete = []
+        if image.file_path:
+            file_paths_to_delete.append(Path(image.file_path))
+        if image.original_path and image.original_path != image.file_path:
+            file_paths_to_delete.append(Path(image.original_path))
+        
+        for file_path in file_paths_to_delete:
+            if file_path.exists():
+                try:
+                    file_path.unlink()  # 删除文件
+                    logger.info(f"[硬删除] 已删除文件: {file_path}")
+                except Exception as e:
+                    logger.error(f"[硬删除] 删除文件失败: {file_path}, 错误: {e}", exc_info=True)
+                    # 继续删除数据库记录，即使文件删除失败
+        
+        # 2. 删除关联数据（质量评估、元数据）
+        from repositories.quality_repository import QualityRepository
+        from repositories.metadata_repository import MetadataRepository
+        
+        quality_repo = QualityRepository(self.db)
+        metadata_repo = MetadataRepository(self.db)
+        
+        try:
+            quality_repo.delete_by_image_id(image_id)
+            metadata_repo.delete_by_image_id(image_id)
+        except Exception as e:
+            logger.warning(f"[硬删除] 删除关联数据失败: {e}", exc_info=True)
+        
+        # 3. 删除数据库记录
         with self.db.transaction() as conn:
             cursor = conn.execute(
                 f"DELETE FROM {Image.TABLE_NAME} WHERE id = ?",
                 (image_id,)
             )
-            return cursor.rowcount > 0
+            deleted = cursor.rowcount > 0
+            if deleted:
+                logger.info(f"[硬删除] 已删除数据库记录: image_id={image_id}")
+            return deleted
     
     def list_deleted(self, limit: Optional[int] = None, offset: int = 0) -> List[Image]:
         """列出已删除的图像（回收站）"""
