@@ -19,7 +19,6 @@ class Image:
                  width: Optional[int] = None,
                  height: Optional[int] = None,
                  format: Optional[str] = None,
-                 thumbnail_path: Optional[str] = None,
                  original_path: Optional[str] = None,
                  created_at: Optional[datetime] = None,
                  updated_at: Optional[datetime] = None,
@@ -32,7 +31,6 @@ class Image:
         self.width = width
         self.height = height
         self.format = format
-        self.thumbnail_path = thumbnail_path
         self.original_path = original_path or file_path  # 默认使用file_path
         self.created_at = created_at or datetime.now()
         self.updated_at = updated_at or datetime.now()
@@ -51,7 +49,6 @@ class Image:
                 width INTEGER,
                 height INTEGER,
                 format TEXT,
-                thumbnail_path TEXT,
                 original_path TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -74,7 +71,6 @@ class Image:
             'width': self.width,
             'height': self.height,
             'format': self.format,
-            'thumbnail_path': self.thumbnail_path,
             'original_path': self.original_path,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
             'updated_at': self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at,
@@ -100,7 +96,6 @@ class Image:
             width=row['width'],
             height=row['height'],
             format=row['format'],
-            thumbnail_path=row['thumbnail_path'],
             original_path=original_path,
             created_at=datetime.fromisoformat(row['created_at']) if row['created_at'] else None,
             updated_at=datetime.fromisoformat(row['updated_at']) if row['updated_at'] else None,

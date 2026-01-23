@@ -11,6 +11,7 @@ sys.path.insert(0, str(project_root))
 from utils.encoding import setup_console_encoding
 from database.connection import init_database
 from web.app import create_app
+from utils.exiftool_manager import ExifToolManager
 
 setup_console_encoding()
 
@@ -21,6 +22,48 @@ if __name__ == '__main__':
         print("数据库已初始化")
     except Exception as e:
         print(f"数据库初始化警告: {e}")
+    
+    # 检查并自动解压ExifTool（如果目录中有压缩包）
+    print("\n检查ExifTool...")
+    manager = ExifToolManager()
+    if not manager.is_available():
+        if manager._has_executable() and manager._is_incomplete():
+            print("⚠ ExifTool安装不完整（缺少依赖文件）")
+            print("  请重新下载压缩包到 exiftool/ 目录，系统会自动解压")
+            print("  下载地址: https://exiftool.org/")
+            print("  或者手动解压压缩包，确保包含 exiftool_files 目录")
+        else:
+            print("ExifTool未找到，正在检查压缩包...")
+            extract_result = manager.extract_exiftool()
+            
+            # 解压后等待一小段时间，确保文件系统更新
+            import time
+            time.sleep(0.2)
+            
+            # 重新检测（解压后可能需要重新检测）
+            manager._detect_exiftool()
+            
+            # 解压后重新检查可用性
+            if manager.is_available():
+                exiftool_path = manager.get_exiftool_path()
+                print(f"✓ ExifTool已成功解压并安装: {exiftool_path}")
+            else:
+                # 详细诊断
+                if manager._has_executable():
+                    if manager._is_incomplete():
+                        print("⚠ ExifTool安装不完整（缺少依赖文件 exiftool_files）")
+                        print("  请重新下载压缩包到 exiftool/ 目录，系统会自动解压")
+                    else:
+                        print("⚠ ExifTool文件存在但无法运行")
+                        print(f"  文件路径: {manager.get_exiftool_path()}")
+                        print("  可能原因: 文件损坏或权限问题")
+                        print("  提示: 请运行 'python tests/diagnose_exiftool.py' 进行详细诊断")
+                else:
+                    print("⚠ ExifTool不可用，请手动下载压缩包到 exiftool/ 目录")
+                print("  下载地址: https://exiftool.org/")
+    else:
+        exiftool_path = manager.get_exiftool_path()
+        print(f"✓ ExifTool已就绪: {exiftool_path}")
     
     app = create_app()
     print("\n" + "="*50)

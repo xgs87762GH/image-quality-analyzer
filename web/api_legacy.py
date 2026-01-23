@@ -1,5 +1,6 @@
 """Web API接口 - 提供JSON数据（遗留端点，逐步迁移到 web/api/ 子模块）"""
 import time
+import json
 from flask import Blueprint, jsonify, request
 from typing import Dict, Any, Optional
 
@@ -500,6 +501,7 @@ def analyze_images():
         ollama_base_url = data.get('ollama_base_url', 'http://localhost:11434')
         ollama_model = data.get('ollama_model', 'llama2')
         aesthetic_mode = data.get('aesthetic_mode', 'none')  # 新增：审美评估方式
+        write_xmp = data.get('write_xmp', True)  # 默认启用XMP写入
         
         # 获取评估问题数组
         evaluation_questions = data.get('evaluation_questions', [])
@@ -509,6 +511,7 @@ def analyze_images():
         logger.info(f"  - 图像ID列表: {image_ids}")
         logger.info(f"  - AI分析: {'✓ 启用' if use_ai else '✗ 禁用'}")
         logger.info(f"  - 审美评估方式: {aesthetic_mode}")
+        logger.info(f"  - XMP写入: {'✓ 启用' if write_xmp else '✗ 禁用'}")
         logger.info(f"  - 评估问题数量: {len(evaluation_questions)}")
         if evaluation_questions:
             logger.info(f"  - 评估问题详情:")
@@ -633,6 +636,16 @@ def analyze_images():
                 }
                 quality = quality_service.quality_repo.create_or_update(image_id, analysis_result)
                 logger.debug(f"[进度] [{idx}/{total}] 质量评估已保存: ID={quality.id if hasattr(quality, 'id') else 'N/A'}")
+                
+                # 保存XMP元数据到数据库（即使不写入文件，也保存到数据库以便查询）
+                xmp_data_for_db = {
+                    'rating': analysis.get('rating', 0),
+                    'label': analysis.get('label', ''),
+                    'subjects': analysis.get('subjects', []),
+                    'description': f"QualityAnalysis: {json.dumps(analysis_result.get('metrics', {}), ensure_ascii=False)}"
+                }
+                metadata = metadata_repo.create_or_update(image_id, xmp_data_for_db)
+                logger.debug(f"[进度] [{idx}/{total}] XMP元数据已保存到数据库: ID={metadata.id if hasattr(metadata, 'id') else 'N/A'}")
                 
                 # AI分析（如果启用）
                 ai_analysis = None
@@ -801,6 +814,67 @@ def analyze_images():
                     from services.evaluation_service import EvaluationService
                     eval_service = EvaluationService()
                     evaluations_list = eval_service.deserialize_evaluations(metadata.evaluations)
+                else:
+                    evaluations_list = []
+                
+                # 写入XMP元数据（如果启用）
+                xmp_written = False
+                if write_xmp:
+                    try:
+                        from metadata.xmp_writer import XMPWriter
+                        from metadata.keyword_extractor import extract_keywords_from_ai_analysis, extract_keywords_from_evaluations
+                        from config.settings import get_settings
+                        
+                        # 自动检测项目内或系统PATH中的ExifTool
+                        xmp_writer = XMPWriter()
+                        if xmp_writer.is_available():
+                            # 准备XMP数据
+                            xmp_data = {
+                                'rating': analysis.get('rating', 0),
+                                'label': analysis.get('label', ''),
+                                'subjects': analysis.get('subjects', []),
+                                'metrics': analysis.get('metrics', {})
+                            }
+                            
+                            # 从AI分析中提取关键词
+                            ai_keywords = []
+                            if ai_analysis:
+                                ai_keywords = extract_keywords_from_ai_analysis(ai_analysis, max_keywords=10)
+                                if ai_keywords:
+                                    logger.debug(f"[进度] [{idx}/{total}] 从AI分析中提取了 {len(ai_keywords)} 个关键词")
+                            
+                            # 从评估结果中提取关键词
+                            if evaluations_list:
+                                eval_keywords = extract_keywords_from_evaluations(evaluations_list)
+                                if eval_keywords:
+                                    ai_keywords.extend(eval_keywords)
+                                    logger.debug(f"[进度] [{idx}/{total}] 从评估结果中提取了 {len(eval_keywords)} 个关键词")
+                            
+                            # 合并AI关键词
+                            if ai_keywords:
+                                xmp_data['ai_keywords'] = ai_keywords
+                            
+                            # 添加描述（如果有AI分析）
+                            if ai_analysis:
+                                # 截取AI分析的前200字符作为描述
+                                ai_desc = ai_analysis[:200] + "..." if len(ai_analysis) > 200 else ai_analysis
+                                xmp_data['description'] = ai_desc
+                            
+                            success = xmp_writer.write(
+                                image.file_path,
+                                xmp_data,
+                                backup=get_settings().metadata.backup_original
+                            )
+                            if success:
+                                xmp_written = True
+                                keyword_count = len(ai_keywords) if ai_keywords else 0
+                                logger.info(f"[进度] [{idx}/{total}] ✓ XMP元数据已写入: {image.file_path} (关键词: {keyword_count}个)")
+                            else:
+                                logger.warning(f"[进度] [{idx}/{total}] ✗ XMP元数据写入失败: {image.file_path}")
+                        else:
+                            logger.warning(f"[进度] [{idx}/{total}] ✗ ExifTool不可用，跳过XMP写入")
+                    except Exception as xmp_error:
+                        logger.warning(f"[进度] [{idx}/{total}] ✗ XMP写入异常: {str(xmp_error)}")
                 
                 results.append({
                     'image_id': image_id,

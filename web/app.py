@@ -21,6 +21,22 @@ def create_app():
     setup_logger("image_quality")
     setup_logger("flask")
     
+    # 检查并自动解压ExifTool（如果目录中有压缩包，静默处理，不阻塞启动）
+    try:
+        from utils.exiftool_manager import ExifToolManager
+        manager = ExifToolManager()
+        if not manager.is_available():
+            # 在后台线程中解压，不阻塞应用启动
+            import threading
+            def extract_in_background():
+                try:
+                    manager.extract_exiftool()
+                except:
+                    pass  # 静默失败，不影响应用启动
+            threading.Thread(target=extract_in_background, daemon=True).start()
+    except:
+        pass  # 如果解压失败，不影响应用启动
+    
     # 注册蓝图
     app.register_blueprint(api_bp)  # 新的模块化API（statistics, images等）
     

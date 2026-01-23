@@ -77,6 +77,13 @@ trash/**/*
 quality_report.csv
 *.csv
 
+# ExifTool（用户下载的可执行文件，不提交到Git）
+exiftool/
+!exiftool/.gitkeep
+exiftool/*.exe
+exiftool/*.pl
+exiftool/exiftool
+
 # 环境变量和配置
 .env
 .env.local

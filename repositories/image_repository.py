@@ -66,7 +66,6 @@ class ImageRepository:
             width=width,
             height=height,
             format=format,
-            thumbnail_path=None,  # 不再使用缩略图
             original_path=str(path.absolute())  # 记录原路径
         )
         
@@ -74,8 +73,8 @@ class ImageRepository:
             cursor = conn.execute(
                 f"""
                 INSERT INTO {Image.TABLE_NAME} 
-                (file_path, file_name, file_size, file_hash, width, height, format, thumbnail_path, original_path)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (file_path, file_name, file_size, file_hash, width, height, format, original_path)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     image.file_path,
@@ -85,7 +84,6 @@ class ImageRepository:
                     image.width,
                     image.height,
                     image.format,
-                    image.thumbnail_path,
                     image.original_path
                 )
             )

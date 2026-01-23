@@ -29,6 +29,15 @@ class SettingsManager {
             if (el) el.checked = settings.autoAnalyze;
         }
         
+        if (settings.writeXmp !== undefined) {
+            const el = document.getElementById('writeXmp');
+            if (el) el.checked = settings.writeXmp;
+        } else {
+            // 默认启用
+            const el = document.getElementById('writeXmp');
+            if (el) el.checked = true;
+        }
+        
         if (settings.aestheticMode) {
             const el = document.getElementById('aestheticMode');
             if (el) el.value = settings.aestheticMode;
@@ -117,6 +126,7 @@ class SettingsManager {
             aiApiKey: document.getElementById('aiApiKey')?.value || '',
             ollamaBaseUrl: document.getElementById('ollamaBaseUrl')?.value || 'http://localhost:11434',
             ollamaModel: document.getElementById('ollamaModel')?.value || 'llama2',
+            writeXmp: document.getElementById('writeXmp')?.checked !== false, // 默认启用
             evaluationQuestions: typeof getEvaluationQuestions === 'function' ? getEvaluationQuestions() : [],
             imageDirectories: typeof getDirectories === 'function' ? getDirectories() : []
         };

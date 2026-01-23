@@ -24,7 +24,10 @@
 # 安装Python包
 pip install -r requirements.txt
 
-# 安装exiftool（必需，用于XMP元数据）
+# ExifTool（自动下载，无需手动安装）
+# 系统会在首次启动时自动下载ExifTool到项目目录，无需手动操作！
+# 
+# 如果自动下载失败，可以手动安装：
 # Windows: 下载 https://exiftool.org/ 并添加到PATH
 # macOS: brew install exiftool
 # Ubuntu: sudo apt-get install libimage-exiftool-perl

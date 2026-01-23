@@ -56,10 +56,10 @@ if (-not (Test-Path "data/image_quality.db")) {
 
 # 执行数据库迁移（如果需要）
 Write-Host "检查数据库迁移..." -ForegroundColor Yellow
-python -c "from database.connection import get_db; db = get_db(); conn = db.get_connection(); cursor = conn.execute('PRAGMA table_info(images)'); cols = [row[1] for row in cursor.fetchall()]; exit(0 if 'deleted_at' in cols and 'thumbnail_path' in cols else 1)" 2>$null
+python -c "from database.connection import get_db; db = get_db(); conn = db.get_connection(); cursor = conn.execute('PRAGMA table_info(images)'); cols = [row[1] for row in cursor.fetchall()]; exit(0 if 'deleted_at' in cols else 1)" 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "执行数据库迁移..." -ForegroundColor Yellow
-    python -c "from database.connection import get_db; db = get_db(); conn = db.get_connection(); conn.execute('ALTER TABLE images ADD COLUMN thumbnail_path TEXT'); conn.execute('ALTER TABLE images ADD COLUMN deleted_at TIMESTAMP'); conn.execute('CREATE INDEX IF NOT EXISTS idx_deleted_at ON images(deleted_at)'); conn.commit(); print('迁移完成')"
+    python -c "from database.connection import get_db; db = get_db(); conn = db.get_connection(); conn.execute('ALTER TABLE images ADD COLUMN deleted_at TIMESTAMP'); conn.execute('CREATE INDEX IF NOT EXISTS idx_deleted_at ON images(deleted_at)'); conn.commit(); print('迁移完成')"
 }
 
 Write-Host ""

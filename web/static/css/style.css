@@ -578,6 +578,27 @@ body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+.metadata-category {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #3498db;
+}
+
+.metadata-category h4 {
+    margin: 0 0 1rem 0;
+    color: #2c3e50;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.metadata-category .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
 .detail-section {
     margin-bottom: 2rem;
 }

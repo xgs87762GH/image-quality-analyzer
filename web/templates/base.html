@@ -189,7 +189,9 @@
                                         <span>Ollama API地址</span>
                                         <input type="text" id="ollamaBaseUrl" name="ollamaBaseUrl" 
                                                placeholder="http://localhost:11434" 
-                                               value="http://localhost:11434" class="settings-input">
+                                               value="http://localhost:11434" 
+                                               autocomplete="url"
+                                               class="settings-input">
                                     </label>
                                     <p class="settings-hint">本地Ollama服务的API地址。如果Ollama运行在其他机器，请修改为对应IP地址。</p>
                                 </div>
@@ -259,6 +261,13 @@
                                     <input type="file" id="directoryPicker" webkitdirectory directory multiple style="display: none;" onchange="handleDirectorySelected(event)">
                                     <p class="settings-hint">添加的目录将在批量导入时使用，支持递归扫描子目录</p>
                                     <p class="settings-hint">点击"重新索引图片"按钮，将根据当前目录列表扫描并更新数据库中的图片记录。</p>
+                                </div>
+                                <div class="settings-item">
+                                    <label class="settings-checkbox-label">
+                                        <input type="checkbox" id="writeXmp" checked>
+                                        <span>自动写入XMP元数据</span>
+                                    </label>
+                                    <p class="settings-hint">分析图像时自动将质量评分、评级、标签等信息写入图像的XMP元数据，兼容Adobe Lightroom、Bridge等主流图像管理软件。需要安装ExifTool工具。</p>
                                 </div>
                             </div>
                         </div>

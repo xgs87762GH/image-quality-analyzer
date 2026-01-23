@@ -108,6 +108,131 @@ def get_image_detail(image_id: int):
         }), 500
 
 
+@api_bp.route('/images/<int:image_id>/metadata', methods=['GET'])
+def get_image_metadata(image_id: int):
+    """获取图像的完整元数据（EXIF、GPS、XMP等）"""
+    try:
+        db = get_db()
+        image_repo = ImageRepository(db)
+        image = image_repo.find_by_id(image_id)
+        
+        if not image:
+            return jsonify({
+                'success': False,
+                'error': 'Image not found'
+            }), 404
+        
+        # 检查文件是否存在
+        file_path = Path(image.file_path)
+        if not file_path.exists():
+            return jsonify({
+                'success': False,
+                'error': 'Image file not found'
+            }), 404
+        
+        # 读取完整元数据（自动检测项目内的ExifTool或系统PATH）
+        from metadata.metadata_reader import MetadataReader
+        
+        reader = MetadataReader()  # 自动检测最佳ExifTool路径
+        
+        # 获取数据库中的元数据（降级方案）
+        metadata_repo = MetadataRepository(db)
+        db_metadata = metadata_repo.find_by_image_id(image_id)
+        
+        if not reader.is_available():
+            # ExifTool不可用，返回数据库中的元数据和下载信息
+            from utils.exiftool_manager import ExifToolManager
+            manager = ExifToolManager()
+            download_info = manager.get_download_info()
+            
+            # 组织数据库中的元数据
+            fallback_metadata = {
+                'file': {
+                    'File:FileName': image.file_name,
+                    'File:FileSize': image.file_size,
+                    'File:FileType': image.format,
+                    'File:Directory': str(Path(image.file_path).parent)
+                },
+                'exif': {},
+                'gps': {},
+                'xmp': {},
+                'iptc': {},
+                'other': {},
+                'warning': {
+                    'message': 'ExifTool不可用，仅显示数据库中的元数据',
+                    'download_info': download_info,
+                    'note': '请将ExifTool压缩包放到项目的exiftool/目录，系统会自动解压并使用',
+                    'extract_note': '如果目录中已有压缩包但ExifTool不可用，请删除exiftool目录中的文件后重新解压压缩包'
+                }
+            }
+            
+            # 添加数据库中的XMP元数据
+            if db_metadata:
+                if db_metadata.xmp_rating:
+                    fallback_metadata['xmp']['XMP-xmp:Rating'] = db_metadata.xmp_rating
+                if db_metadata.xmp_label:
+                    fallback_metadata['xmp']['XMP-xmp:Label'] = db_metadata.xmp_label
+                if db_metadata.xmp_subjects:
+                    fallback_metadata['xmp']['XMP-dc:Subject'] = db_metadata.xmp_subjects
+                if db_metadata.xmp_description:
+                    fallback_metadata['xmp']['XMP-dc:Description'] = db_metadata.xmp_description
+            
+            return jsonify({
+                'success': True,
+                'data': fallback_metadata,
+                'warning': 'ExifTool不可用，仅显示数据库中的元数据。安装ExifTool后可查看完整元数据。'
+            })
+        
+        # ExifTool可用，读取完整元数据
+        from utils.logger import get_logger
+        logger = get_logger()
+        logger.info(f"开始读取图像元数据: image_id={image_id}, path={file_path}")
+        
+        metadata = reader.read_all(str(file_path))
+        
+        # 记录读取结果
+        if metadata.get('error'):
+            logger.warning(f"元数据读取失败: image_id={image_id}, error={metadata.get('error')}")
+        else:
+            categories = [k for k in metadata.keys() if k != 'error']
+            total_items = sum(len(v) if isinstance(v, dict) else 0 for v in metadata.values())
+            logger.info(f"元数据读取成功: image_id={image_id}, 类别数={len(categories)}, 总项数={total_items}")
+        
+        # 如果读取失败但有数据库元数据，合并显示
+        if metadata.get('error') and db_metadata:
+            metadata = {
+                'file': metadata.get('file', {}),
+                'exif': metadata.get('exif', {}),
+                'gps': metadata.get('gps', {}),
+                'xmp': metadata.get('xmp', {}),
+                'iptc': metadata.get('iptc', {}),
+                'other': metadata.get('other', {}),
+                'warning': 'ExifTool读取部分失败，已合并数据库中的元数据'
+            }
+            # 合并数据库中的XMP元数据
+            if db_metadata.xmp_rating:
+                metadata['xmp']['XMP-xmp:Rating'] = db_metadata.xmp_rating
+            if db_metadata.xmp_label:
+                metadata['xmp']['XMP-xmp:Label'] = db_metadata.xmp_label
+            if db_metadata.xmp_subjects:
+                metadata['xmp']['XMP-dc:Subject'] = db_metadata.xmp_subjects
+            if db_metadata.xmp_description:
+                metadata['xmp']['XMP-dc:Description'] = db_metadata.xmp_description
+        
+        return jsonify({
+            'success': True,
+            'data': metadata
+        })
+    except Exception as e:
+        from utils.logger import get_logger
+        logger = get_logger()
+        logger.error(f"读取元数据失败: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @api_bp.route('/images/search', methods=['GET'])
 def search_images():
     """搜索图像"""

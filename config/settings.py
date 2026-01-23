@@ -27,7 +27,7 @@ class AnalyzerConfig:
 @dataclass
 class MetadataConfig:
     """元数据配置"""
-    exiftool_path: str = "exiftool"
+    exiftool_path: str = "exiftool"  # 默认使用系统PATH，会自动检测项目内的ExifTool
     write_to_xmp: bool = True
     backup_original: bool = True
 

@@ -1,38 +1,23 @@
 """XMP元数据读取器"""
 import json
-import subprocess
 from typing import Dict, List
 from pathlib import Path
 from utils.constants import XMP_FIELDS, DEFAULT_IMAGE_EXTENSIONS
+from utils.exiftool_executor import ExifToolExecutor
+from utils.logger import get_logger
 
 
 class XMPReader:
     """XMP元数据读取器 - 使用exiftool"""
     
-    def __init__(self, exiftool_path: str = "exiftool"):
-        """
-        初始化XMP读取器
-        
-        Args:
-            exiftool_path: exiftool可执行文件路径
-        """
-        self.exiftool_path = exiftool_path
-        self._check_exiftool()
+    def __init__(self):
+        """初始化XMP读取器"""
+        self._executor = ExifToolExecutor()
+        self._logger = get_logger()
     
-    def _check_exiftool(self):
+    def is_available(self) -> bool:
         """检查exiftool是否可用"""
-        try:
-            result = subprocess.run(
-                [self.exiftool_path, "-ver"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if result.returncode != 0:
-                raise FileNotFoundError("exiftool未正确安装")
-        except FileNotFoundError:
-            print("错误: 未找到exiftool")
-            raise
+        return self._executor.is_available()
     
     def read(self, image_path: str) -> Dict:
         """
@@ -44,32 +29,43 @@ class XMPReader:
         Returns:
             元数据字典
         """
+        if not self.is_available():
+            self._logger.warning(f"ExifTool不可用，无法读取XMP: {image_path}")
+            return {}
+        
         try:
+            # 确保路径是有效的字符串（处理中文路径编码问题）
+            if isinstance(image_path, Path):
+                image_path_str = str(image_path.resolve())
+            else:
+                image_path_str = str(image_path)
+                # 确保是有效的UTF-8
+                try:
+                    image_path_str.encode('utf-8').decode('utf-8')
+                except (UnicodeEncodeError, UnicodeDecodeError):
+                    image_path_str = image_path_str.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
+            
             fields = XMP_FIELDS
-            cmd = [
-                self.exiftool_path,
+            args = [
                 "-j",  # JSON输出
                 f"-{fields['rating']}",
                 f"-{fields['label']}",
                 f"-{fields['subject']}",
                 f"-{fields['description']}",
-                str(image_path)
+                image_path_str
             ]
             
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+            result = self._executor.execute(args, timeout=10)
             
-            if result.returncode == 0 and result.stdout:
-                data = json.loads(result.stdout)
+            if result['success'] and result['stdout']:
+                data = json.loads(result['stdout'])
                 if data and len(data) > 0:
+                    self._logger.debug(f"成功读取XMP: {image_path}")
                     return data[0]
+            
             return {}
         except Exception as e:
-            print(f"读取元数据失败 {image_path}: {e}")
+            self._logger.error(f"读取XMP失败: {image_path}, 错误: {e}")
             return {}
     
     def find_by_rating(self, directory: str, max_rating: int = 2) -> List[str]:

@@ -251,7 +251,8 @@ class AnalysisManager {
             ollama_base_url: settings.ollamaBaseUrl || 'http://localhost:11434',
             ollama_model: settings.ollamaModel || 'llama2',
             evaluation_questions: evaluationQuestions.length > 0 ? evaluationQuestions : undefined,
-            aesthetic_mode: settings.aestheticMode || 'none'
+            aesthetic_mode: settings.aestheticMode || 'none',
+            write_xmp: settings.writeXmp !== undefined ? settings.writeXmp : true  // 默认启用
         };
     }
     

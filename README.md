@@ -49,10 +49,13 @@ Image Quality Analyzer 是一个功能强大的图像质量分析工具，可以
 - **重复检测** - 基于哈希的重复图像检测
 
 ### 🏷️ 元数据支持
-- **XMP Rating** - 1-5星评级
+- **XMP Rating** - 1-5星评级（兼容Lightroom、Capture One等）
 - **XMP Label** - 质量标签（高质量/中等质量/低质量等）
-- **XMP Subject** - 关键词列表
-- **XMP Description** - 详细指标JSON
+- **XMP Subject/Keywords** - 关键词列表（支持质量分析+AI提取，追加模式保留原有关键词）
+- **XMP Description** - 详细指标和AI分析摘要（追加到现有描述，不覆盖）
+- **标准XMP标签** - 使用Dublin Core和XMP Core标准，确保跨软件兼容
+- **AI关键词提取** - 自动从AI分析中提取关键词，丰富元数据
+- **元数据保护** ⚠️ - 绝对不覆盖个人信息、时间、地点、摄影参数等原有元数据
 
 ### 🌐 Web界面
 - **现代化UI** - 响应式设计，支持多种视图
@@ -97,7 +100,29 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-#### 4. 安装 ExifTool（必需）
+#### 4. ExifTool（自动解压，手动下载压缩包）
+
+**系统会自动解压 `exiftool/` 目录中的压缩包，无需手动解压！**
+
+- 手动下载ExifTool压缩包到 `exiftool/` 目录
+- 启动项目时，系统会自动检测并解压压缩包
+- 解压后的可执行文件会自动使用
+- 解压成功后，压缩文件会自动清理
+
+**下载地址**：
+- **Windows**: https://exiftool.org/exiftool-XX.XX.zip
+- **macOS/Linux**: https://exiftool.org/Image-ExifTool-XX.XX.tar.gz
+
+**支持的压缩格式**：
+- Windows: `.zip` 文件
+- macOS/Linux: `.tar.gz` 或 `.tgz` 文件
+
+**或者使用包管理器安装（可选）**：
+- **Windows**: 下载并添加到系统PATH
+- **macOS**: `brew install exiftool`
+- **Linux**: `sudo apt-get install libimage-exiftool-perl`
+
+> 注意：如果不安装ExifTool，系统仍可正常工作，但无法读取完整的EXIF/GPS元数据，也无法写入XMP元数据到图像文件。
 
 ExifTool 用于读写XMP元数据。
 

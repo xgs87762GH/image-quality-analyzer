@@ -1,18 +1,10 @@
-"""添加缩略图和删除字段的迁移"""
+"""添加删除字段的迁移"""
 from database.connection import DatabaseConnection
 
 
 def up(db: DatabaseConnection):
     """执行迁移"""
     conn = db.get_connection()
-    
-    # 添加thumbnail_path字段（如果不存在）
-    try:
-        conn.execute("ALTER TABLE images ADD COLUMN thumbnail_path TEXT")
-        print("已添加 thumbnail_path 字段")
-    except Exception as e:
-        if "duplicate column" not in str(e).lower():
-            print(f"添加 thumbnail_path 字段时出错: {e}")
     
     # 添加deleted_at字段（如果不存在）
     try:

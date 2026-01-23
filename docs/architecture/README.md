@@ -24,7 +24,11 @@ image-quality-analyzer/
 │   ├── models.py            # 数据模型（Image, QualityAssessment, Metadata）
 │   └── migrations/          # 数据库迁移
 │       ├── __init__.py
-│       └── 001_initial_schema.py
+│       ├── 001_initial_schema.py      # 初始数据库结构
+│       ├── 002_add_thumbnail_and_deleted.py  # 添加删除标记（已移除缩略图相关）
+│       ├── 003_add_original_path.py   # 添加原始路径字段
+│       ├── 004_add_ai_analysis_fields.py  # 添加AI分析字段
+│       └── 005_add_evaluations_array.py   # 添加评估结果数组
 │
 ├── repositories/            # 数据访问层（Repository模式）
 │   ├── __init__.py
@@ -66,7 +70,9 @@ image-quality-analyzer/
 ├── metadata/                # 元数据模块
 │   ├── __init__.py
 │   ├── xmp_writer.py        # XMP写入
-│   └── xmp_reader.py        # XMP读取
+│   ├── xmp_reader.py        # XMP读取
+│   ├── metadata_reader.py   # 完整元数据读取（EXIF、GPS、XMP等）
+│   └── keyword_extractor.py # 关键词提取（从AI分析中提取关键词）
 │
 ├── processors/              # 处理器模块
 │   ├── __init__.py
@@ -78,7 +84,8 @@ image-quality-analyzer/
 │   ├── constants.py         # 常量定义（质量阈值、权重、归一化参数等）
 │   ├── logger.py            # 日志系统（统一日志管理）
 │   ├── system_info.py       # 系统信息（环境检测、依赖检查）
-│   └── thumbnail.py         # 缩略图工具（已废弃，现直接使用原图）
+│   ├── exiftool_manager.py  # ExifTool管理器（检测、提取、路径管理）
+│   └── exiftool_executor.py # ExifTool执行器（统一命令执行，高内聚低耦合）
 │
 ├── cli/                     # 命令行接口
 │   ├── __init__.py
@@ -109,7 +116,6 @@ image-quality-analyzer/
 │   ├── setup_env.ps1        # Windows环境设置脚本
 │   ├── setup_env.sh         # Linux/macOS环境设置脚本
 │   ├── view_log.py          # 日志查看工具
-│   └── fix_thumbnails.py    # 缩略图修复脚本（已废弃）
 │
 ├── tests/                   # 测试代码
 │   └── ...
@@ -172,7 +178,10 @@ image-quality-analyzer/
 
 #### 6. 元数据层 (metadata/)
 - XMP元数据读写
+- 完整元数据读取（EXIF、GPS、XMP等）
+- 关键词提取（从AI分析中提取）
 - 兼容主流图像管理软件
+- 元数据保护（避免覆盖个人信息、时间、位置等）
 
 #### 7. 处理器层 (processors/)
 - 批量处理逻辑
@@ -182,6 +191,8 @@ image-quality-analyzer/
 - 通用工具函数
 - 日志系统
 - 常量定义
+- ExifTool管理（自动检测、提取、路径管理）
+- ExifTool执行器（统一命令执行，高内聚低耦合设计）
 
 ## 设计模式
 
@@ -198,7 +209,7 @@ image-quality-analyzer/
 - 易于切换数据源
 - 业务逻辑不直接依赖数据库
 
-### 2. Service模式
+### 3. Service模式
 
 **目的**: 封装业务逻辑，提供统一的服务接口
 
@@ -212,7 +223,7 @@ image-quality-analyzer/
 - 便于事务控制
 - 便于权限控制
 
-### 3. Factory模式
+### 4. Factory模式
 
 **目的**: 统一创建服务实例，降低耦合
 
@@ -225,7 +236,7 @@ image-quality-analyzer/
 - 便于依赖注入
 - 便于测试
 
-### 4. Strategy模式
+### 5. Strategy模式
 
 **目的**: 支持多种分析策略
 
@@ -341,6 +352,7 @@ tests/        → services/ → repositories/ → database/
 ### 新API模块 (web/api/)
 - `/api/images` - GET: 获取图像列表（支持分页、筛选）
 - `/api/images/<id>` - GET: 获取图像详情
+- `/api/images/<id>/metadata` - GET: 获取图像完整元数据（EXIF、GPS、XMP等）
 - `/api/images/search` - GET: 搜索图像
 - `/api/images/<id>/delete` - POST: 软删除图像
 - `/api/images/batch-delete` - POST: 批量删除

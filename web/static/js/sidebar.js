@@ -200,6 +200,14 @@ function loadSettings() {
     if (settings.autoAnalyze !== undefined) {
         document.getElementById('autoAnalyze').checked = settings.autoAnalyze;
     }
+    // 加载XMP写入设置（默认启用）
+    if (settings.writeXmp !== undefined) {
+        const el = document.getElementById('writeXmp');
+        if (el) el.checked = settings.writeXmp;
+    } else {
+        const el = document.getElementById('writeXmp');
+        if (el) el.checked = true; // 默认启用
+    }
     // 处理审美评估方式
     if (settings.aestheticMode) {
         document.getElementById('aestheticMode').value = settings.aestheticMode;
@@ -385,6 +393,7 @@ function saveSettings(event) {
             aiApiKey: document.getElementById('aiApiKey').value,
             ollamaBaseUrl: document.getElementById('ollamaBaseUrl').value || 'http://localhost:11434',
             ollamaModel: document.getElementById('ollamaModel').value || 'llama2',
+            writeXmp: document.getElementById('writeXmp')?.checked !== false, // 默认启用
             evaluationQuestions: typeof getEvaluationQuestions === 'function' ? getEvaluationQuestions() : [],
             imageDirectories: typeof getDirectories === 'function' ? getDirectories() : []
         };

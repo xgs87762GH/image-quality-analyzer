@@ -44,10 +44,21 @@ ISSUE_THRESHOLDS = {
     'brisque_high': 50  # BRISQUE高失真阈值
 }
 
-# XMP字段名称
+# XMP字段名称（标准XMP标签，兼容主流图像管理软件）
 XMP_FIELDS = {
-    'rating': 'XMP-xmp:Rating',
-    'label': 'XMP-xmp:Label',
-    'subject': 'XMP-dc:Subject',
-    'description': 'XMP-dc:Description'
+    # XMP Core标签（最常用，兼容性最好）
+    'rating': 'XMP-xmp:Rating',           # 星级评分 (1-5)
+    'label': 'XMP-xmp:Label',             # 颜色标签
+    'metadata_date': 'XMP-xmp:MetadataDate',  # 元数据修改日期
+    
+    # Dublin Core标签（标准元数据）
+    'title': 'XMP-dc:Title',              # 标题
+    'creator': 'XMP-dc:Creator',          # 作者/创作者
+    'description': 'XMP-dc:Description',  # 描述
+    'subject': 'XMP-dc:Subject',         # 主题/关键词
+    'rights': 'XMP-dc:Rights',           # 版权信息
+    
+    # IPTC Core标签（新闻摄影常用）
+    'headline': 'XMP-Iptc4xmpCore:Headline',  # 标题
+    'keywords': 'XMP-Iptc4xmpCore:Keywords', # 关键词（数组）
 }

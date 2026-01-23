@@ -30,6 +30,10 @@ if not exist "data\image_quality.db" (
     python scripts\init_database.py
 )
 
+REM 检查ExifTool（会自动解压）
+echo 检查ExifTool...
+python -c "from utils.exiftool_manager import ExifToolManager; m = ExifToolManager(); m.is_available() or m.extract_exiftool()"
+
 echo.
 echo ========================================
 echo   启动Web服务器...

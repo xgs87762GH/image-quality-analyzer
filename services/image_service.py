@@ -38,7 +38,8 @@ class ImageService:
             aesthetic_mode=aesthetic_mode,
             ai_analyzer=ai_analyzer
         )
-        self.xmp_writer = XMPWriter(settings.metadata.exiftool_path)
+        # 使用ExifTool管理器自动检测最佳路径（优先使用项目内的ExifTool）
+        self.xmp_writer = XMPWriter()  # 自动检测项目内或系统PATH中的ExifTool
         self.logger = get_logger()
     
     def process_image(self, file_path: str, write_xmp: bool = True) -> Dict[str, Any]:
