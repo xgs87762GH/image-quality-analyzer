@@ -35,19 +35,33 @@ image-quality-analyzer/
 │
 ├── services/                # 业务逻辑层
 │   ├── __init__.py
-│   ├── service_factory.py   # 服务工厂（单例模式）
-│   ├── image_service.py      # 图像服务（整合分析、存储、元数据）
-│   ├── quality_service.py   # 质量评估服务（查询、统计）
-│   ├── auto_import_service.py # 自动导入服务
-│   └── evaluation_service.py  # 评估服务
+│   ├── service_factory.py   # 服务工厂（单例模式，统一创建服务实例）
+│   ├── image_service.py      # 图像服务（整合分析、存储、元数据、重复检测）
+│   ├── quality_service.py   # 质量评估服务（查询、统计、筛选）
+│   ├── auto_import_service.py # 自动导入服务（目录验证、批量导入）
+│   ├── evaluation_service.py  # 评估服务（评估问题管理）
+│   └── model_service.py     # 模型服务（AI模型管理）
 │
 ├── analyzers/               # 分析器模块
 │   ├── __init__.py
-│   ├── base_analyzer.py     # 分析器基类
+│   ├── base_analyzer.py     # 分析器基类（接口定义）
 │   ├── quality_analyzer.py   # 质量分析（模糊度、亮度、熵、BRISQUE）
 │   ├── aesthetic_analyzer.py # 审美评分（CLIP模型）
-│   ├── ai_analyzer.py        # AI分析器（GPT-4V, Claude, Gemini, Ollama）
-│   └── image_analyzer.py    # 整合分析器
+│   ├── ai_analyzer.py        # AI分析器（整合多种AI模型）
+│   ├── image_analyzer.py    # 整合分析器（协调质量、审美、AI分析）
+│   ├── calculators/         # 计算器模块
+│   │   ├── metric_normalizer.py  # 指标归一化
+│   │   └── quality_calculator.py  # 质量分数计算
+│   ├── parsers/             # 解析器模块
+│   │   └── evaluation_parser.py  # 评估结果解析
+│   ├── prompts/             # 提示词模块
+│   │   └── evaluation_prompt_builder.py  # 评估提示词构建
+│   └── ai_models/           # AI模型实现
+│       ├── base_model.py    # AI模型基类
+│       ├── ollama_model.py  # Ollama模型
+│       ├── gpt4v_model.py   # GPT-4 Vision模型
+│       ├── claude_model.py  # Claude模型
+│       └── gemini_model.py  # Gemini模型
 │
 ├── metadata/                # 元数据模块
 │   ├── __init__.py
@@ -56,21 +70,21 @@ image-quality-analyzer/
 │
 ├── processors/              # 处理器模块
 │   ├── __init__.py
-│   └── batch_processor.py  # 批量处理器（使用数据库）
+│   └── batch_processor.py  # 批量处理器（批量分析图像，使用数据库存储）
 │
 ├── utils/                   # 工具模块
 │   ├── __init__.py
-│   ├── encoding.py          # 编码处理
-│   ├── constants.py         # 常量定义
-│   ├── logger.py            # 日志系统
-│   ├── system_info.py       # 系统信息
+│   ├── encoding.py          # 编码处理（控制台编码设置）
+│   ├── constants.py         # 常量定义（质量阈值、权重、归一化参数等）
+│   ├── logger.py            # 日志系统（统一日志管理）
+│   ├── system_info.py       # 系统信息（环境检测、依赖检查）
 │   └── thumbnail.py         # 缩略图工具（已废弃，现直接使用原图）
 │
 ├── cli/                     # 命令行接口
 │   ├── __init__.py
-│   ├── main.py              # 主程序（批量处理）
-│   ├── filter.py            # 筛选工具（基于XMP）
-│   └── query.py             # 数据库查询工具
+│   ├── main.py              # 主程序（批量处理图像）
+│   ├── filter.py            # 筛选工具（基于XMP元数据）
+│   └── query.py             # 数据库查询工具（查询、统计、重复检测）
 │
 ├── web/                     # Web界面模块（完全独立）
 │   ├── __init__.py
@@ -89,8 +103,13 @@ image-quality-analyzer/
 │
 ├── scripts/                 # 脚本
 │   ├── init_database.py     # 数据库初始化
-│   ├── run_web.py           # Web启动脚本
-│   └── migrate_database.py  # 数据库迁移
+│   ├── run_web.py           # Web启动脚本（主启动方式）
+│   ├── migrate_database.py  # 数据库迁移
+│   ├── start_project.ps1    # PowerShell一键启动脚本
+│   ├── setup_env.ps1        # Windows环境设置脚本
+│   ├── setup_env.sh         # Linux/macOS环境设置脚本
+│   ├── view_log.py          # 日志查看工具
+│   └── fix_thumbnails.py    # 缩略图修复脚本（已废弃）
 │
 ├── tests/                   # 测试代码
 │   └── ...
