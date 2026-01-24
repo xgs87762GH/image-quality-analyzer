@@ -55,6 +55,48 @@
     
     // 页面加载时初始化
     document.addEventListener('DOMContentLoaded', () => {
+        // 检查是否有正在进行的分析（从sessionStorage恢复）
+        let analysisInProgress = false;
+        try {
+            analysisInProgress = sessionStorage.getItem('analysisInProgress') === 'true';
+        } catch (e) {
+            console.warn('[页面加载] 无法读取sessionStorage:', e);
+        }
+        
+        // 检查分析管理器状态
+        if (window.analysisManager && window.analysisManager.isAnalyzingInProgress()) {
+            analysisInProgress = true;
+        }
+        
+        // 如果有正在进行的分析，恢复悬浮框显示
+        if (analysisInProgress) {
+            const floatBtn = document.getElementById('analysisFloatBtn');
+            if (floatBtn) {
+                floatBtn.style.display = 'block';
+                floatBtn.style.zIndex = '9999';
+                // 禁用关闭按钮
+                const closeBtn = floatBtn.querySelector('.float-btn-close');
+                if (closeBtn) {
+                    closeBtn.style.display = 'none';
+                    closeBtn.disabled = true;
+                }
+                
+                // 恢复分析总数（如果存在）
+                try {
+                    const total = sessionStorage.getItem('analysisTotal');
+                    if (total && window.updateAnalysisFloatBtn) {
+                        // 显示一个提示，说明分析正在进行中
+                        const floatTitle = floatBtn.querySelector('.float-btn-title');
+                        if (floatTitle) {
+                            floatTitle.textContent = '分析正在进行中...';
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[页面加载] 无法读取分析总数:', e);
+                }
+            }
+        }
+        
         // 加载图像列表（不自动导入）
         imageListManager.loadImages(1).then(() => {
             // 加载完成后检查是否需要显示索引按钮
@@ -169,6 +211,16 @@
     };
     
     window.hideAnalysisFloatBtn = () => {
+        // 检查是否正在分析中
+        if (window.analysisManager && window.analysisManager.isAnalyzingInProgress()) {
+            if (window.notificationManager && typeof window.notificationManager.show === 'function') {
+                window.notificationManager.show('分析正在进行中，无法隐藏进度窗口', '提示', { type: 'info' });
+            } else {
+                alert('分析正在进行中，无法隐藏进度窗口');
+            }
+            return;
+        }
+        
         const btn = document.getElementById('analysisFloatBtn');
         if (btn) btn.style.display = 'none';
     };

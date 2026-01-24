@@ -5,12 +5,24 @@
 class AnalysisManager {
     constructor(apiService) {
         this.apiService = apiService;
+        this.isAnalyzing = false; // 分析状态标志
+        this.currentAnalysisPromise = null; // 当前分析Promise，用于取消
     }
     
     /**
      * 智能分析：如果有选中图片则分析选中的，否则分析所有
      */
     async smartAnalyze(selectedIds = []) {
+        // 检查是否正在分析中
+        if (this.isAnalyzing) {
+            if (window.notificationManager && typeof window.notificationManager.show === 'function') {
+                window.notificationManager.show('分析正在进行中，请等待当前分析完成', '提示', { type: 'info' });
+            } else {
+                alert('分析正在进行中，请等待当前分析完成');
+            }
+            return;
+        }
+        
         let imageIds = [];
         
         console.log(`[分析] smartAnalyze 被调用，selectedIds:`, selectedIds, '类型:', typeof selectedIds, '是否为数组:', Array.isArray(selectedIds), '长度:', selectedIds ? selectedIds.length : 0);
@@ -28,13 +40,49 @@ class AnalysisManager {
             }
         }
         
+        // 显示确认对话框（无论是否有选中图片）
+        let confirmed = false;
         if (selectedIds && selectedIds.length > 0) {
-            // 有选中图片，分析选中的
+            // 有选中图片，显示确认对话框
+            if (window.notificationManager && typeof window.notificationManager.confirm === 'function') {
+                confirmed = await window.notificationManager.confirm(
+                    `确定要分析选中的 ${selectedIds.length} 张图片吗？这可能需要一些时间。`,
+                    '确认分析',
+                    {
+                        confirmText: '开始分析',
+                        cancelText: '取消',
+                        type: 'warning'
+                    }
+                );
+            } else {
+                confirmed = confirm(`确定要分析选中的 ${selectedIds.length} 张图片吗？这可能需要一些时间。`);
+            }
+            
+            if (!confirmed) {
+                console.log('[分析] 用户取消了分析操作');
+                return;
+            }
+            
             imageIds = selectedIds;
             console.log(`[分析] 分析选中的 ${imageIds.length} 张图片，图片ID列表:`, imageIds);
         } else {
             // 没有选中图片，分析所有
-            if (!confirm('没有选中图片，确定要分析所有图片吗？这可能需要一些时间。')) {
+            if (window.notificationManager && typeof window.notificationManager.confirm === 'function') {
+                confirmed = await window.notificationManager.confirm(
+                    '没有选中图片，确定要分析所有图片吗？这可能需要一些时间。',
+                    '确认分析',
+                    {
+                        confirmText: '开始分析',
+                        cancelText: '取消',
+                        type: 'warning'
+                    }
+                );
+            } else {
+                confirmed = confirm('没有选中图片，确定要分析所有图片吗？这可能需要一些时间。');
+            }
+            
+            if (!confirmed) {
+                console.log('[分析] 用户取消了分析操作');
                 return;
             }
             
@@ -44,21 +92,34 @@ class AnalysisManager {
                     imageIds = response.data.images.map(item => item.image.id);
                     console.log(`[分析] 分析所有 ${imageIds.length} 张图片`);
                 } else {
-                    alert('获取图像列表失败');
+                    if (window.notificationManager && typeof window.notificationManager.show === 'function') {
+                        window.notificationManager.show('获取图像列表失败', '错误', { type: 'error' });
+                    } else {
+                        alert('获取图像列表失败');
+                    }
                     return;
                 }
             } catch (error) {
                 console.error('[分析] 获取图像列表失败:', error);
-                alert('获取图像列表失败: ' + error.message);
+                if (window.notificationManager && typeof window.notificationManager.show === 'function') {
+                    window.notificationManager.show('获取图像列表失败: ' + error.message, '错误', { type: 'error' });
+                } else {
+                    alert('获取图像列表失败: ' + error.message);
+                }
                 return;
             }
         }
         
         if (imageIds.length === 0) {
-            alert('没有可分析的图片');
+            if (window.notificationManager && typeof window.notificationManager.show === 'function') {
+                window.notificationManager.show('没有可分析的图片', '提示', { type: 'info' });
+            } else {
+                alert('没有可分析的图片');
+            }
             return;
         }
         
+        // 用户确认后才开始分析
         await this.analyzeImages(imageIds);
     }
     
@@ -80,21 +141,120 @@ class AnalysisManager {
      * 分析图像（核心方法）
      */
     async analyzeImages(imageIds) {
+        // 检查是否正在分析中
+        if (this.isAnalyzing) {
+            console.warn('[分析] 分析正在进行中，忽略重复调用');
+            return;
+        }
+        
+        // 设置分析状态
+        this.isAnalyzing = true;
+        
+        // 保存分析状态到sessionStorage，以便页面切换后恢复
+        try {
+            sessionStorage.setItem('analysisInProgress', 'true');
+            sessionStorage.setItem('analysisTotal', total.toString());
+        } catch (e) {
+            console.warn('[分析] 无法保存分析状态到sessionStorage:', e);
+        }
+        
         // 只使用悬浮框，不使用模态框
         const total = imageIds.length;
         
         console.log(`[分析] 开始分析 ${total} 张图片，图片ID列表:`, imageIds);
         
-        // 显示悬浮框
+        // 显示悬浮框并禁用关闭按钮
         if (window.showAnalysisFloatBtn) {
             window.showAnalysisFloatBtn(total);
         }
+        
+        // 禁用悬浮框的关闭按钮，并确保悬浮框始终显示（跨页面）
+        const ensureFloatBtnVisible = () => {
+            const floatBtn = document.getElementById('analysisFloatBtn');
+            if (floatBtn) {
+                floatBtn.style.display = 'block'; // 确保悬浮框显示
+                floatBtn.style.pointerEvents = 'auto'; // 确保可以交互
+                // 设置最高z-index，确保在所有页面都可见
+                floatBtn.style.zIndex = '9999';
+            }
+            const closeBtn = floatBtn?.querySelector('.float-btn-close');
+            if (closeBtn) {
+                closeBtn.style.display = 'none'; // 分析过程中隐藏关闭按钮
+                closeBtn.disabled = true;
+                // 移除onclick事件，防止意外触发
+                closeBtn.onclick = null;
+            }
+        };
+        
+        ensureFloatBtnVisible();
+        
+        // 监听页面切换，确保悬浮框在页面切换后仍然显示
+        const checkFloatBtnOnNavigation = () => {
+            if (this.isAnalyzing) {
+                ensureFloatBtnVisible();
+            }
+        };
+        
+        // 监听DOM变化（页面切换时）
+        const observer = new MutationObserver(() => {
+            if (this.isAnalyzing) {
+                ensureFloatBtnVisible();
+            }
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // 保存observer以便在分析完成后清理
+        this._floatBtnObserver = observer;
         
         // 初始化进度
         if (window.updateAnalysisFloatBtn) {
             window.updateAnalysisFloatBtn(0, total, total, 0);
         }
         
+        // 保存当前分析的Promise
+        this.currentAnalysisPromise = this._executeAnalysis(imageIds, total);
+        
+        try {
+            await this.currentAnalysisPromise;
+        } catch (error) {
+            console.error('[分析] 分析过程出错:', error);
+        } finally {
+            // 清理observer
+            if (this._floatBtnObserver) {
+                this._floatBtnObserver.disconnect();
+                this._floatBtnObserver = null;
+            }
+            
+            // 重置分析状态
+            this.isAnalyzing = false;
+            this.currentAnalysisPromise = null;
+            
+            // 清除sessionStorage中的分析状态
+            try {
+                sessionStorage.removeItem('analysisInProgress');
+                sessionStorage.removeItem('analysisTotal');
+            } catch (e) {
+                console.warn('[分析] 无法清除sessionStorage中的分析状态:', e);
+            }
+            
+            // 恢复关闭按钮
+            const floatBtnAfter = document.getElementById('analysisFloatBtn');
+            const closeBtnAfter = floatBtnAfter?.querySelector('.float-btn-close');
+            if (closeBtnAfter) {
+                closeBtnAfter.style.display = 'flex';
+                closeBtnAfter.disabled = false;
+            }
+        }
+    }
+    
+    /**
+     * 执行分析（内部方法）
+     */
+    async _executeAnalysis(imageIds, total) {
         try {
             // 使用设置管理器或直接访问
             const settings = (window.settingsManager && window.settingsManager.getSettings) 
@@ -218,9 +378,9 @@ class AnalysisManager {
                 }
             }, 3000);
             
-            // 刷新列表
+            // 刷新列表（延迟执行，避免与分析过程冲突）
             setTimeout(() => {
-                if (window.imageListManager) {
+                if (window.imageListManager && !this.isAnalyzing) {
                     window.imageListManager.loadImages();
                 }
             }, 1000);
@@ -231,8 +391,19 @@ class AnalysisManager {
             if (window.hideAnalysisFloatBtn) {
                 window.hideAnalysisFloatBtn();
             }
-            alert('分析失败: ' + error.message);
+            if (window.notificationManager && typeof window.notificationManager.show === 'function') {
+                window.notificationManager.show('分析失败: ' + error.message, '错误', { type: 'error' });
+            } else {
+                alert('分析失败: ' + error.message);
+            }
         }
+    }
+    
+    /**
+     * 检查是否正在分析
+     */
+    isAnalyzingInProgress() {
+        return this.isAnalyzing;
     }
     
     /**

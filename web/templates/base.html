@@ -300,6 +300,37 @@
     <!-- 模态框容器（用于确认对话框等） -->
     <div id="modalContainer"></div>
     
+    <!-- 分析进度悬浮按钮（全局，所有页面可见） -->
+    <div class="analysis-float-btn" id="analysisFloatBtn" style="display: none;">
+        <div class="float-btn-header">
+            <span class="float-btn-icon">🔍</span>
+            <span class="float-btn-title">正在分析</span>
+            <button class="float-btn-close" onclick="hideAnalysisFloatBtn()" title="隐藏">×</button>
+        </div>
+        <div class="float-btn-content">
+            <div class="float-btn-stat">
+                <div class="stat-item">
+                    <span class="stat-label">正在分析</span>
+                    <span class="stat-value" id="floatAnalyzing">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">剩余未分析</span>
+                    <span class="stat-value" id="floatRemaining">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">总需分析</span>
+                    <span class="stat-value" id="floatTotal">0</span>
+                </div>
+            </div>
+            <div class="float-btn-progress">
+                <div class="progress-bar-mini">
+                    <div class="progress-fill-mini" id="floatProgressFill" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="floatProgressText">0%</div>
+            </div>
+        </div>
+    </div>
+    
     <!-- 脚本 -->
     <script src="{{ url_for('static', filename='js/common.js') }}"></script>
     <script src="{{ url_for('static', filename='js/modules/notification.js') }}"></script>
