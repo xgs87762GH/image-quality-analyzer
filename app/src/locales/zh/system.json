@@ -1,0 +1,29 @@
+{
+  "title": "系统信息",
+  "system": {
+    "title": "系统",
+    "platform": "平台",
+    "version": "系统版本",
+    "machine": "架构",
+    "processor": "处理器",
+    "pythonVersion": "Python 版本",
+    "pythonExecutable": "Python 路径"
+  },
+  "exiftool": {
+    "title": "ExifTool",
+    "available": "可用",
+    "unavailable": "不可用",
+    "path": "路径",
+    "version": "版本"
+  },
+  "database": {
+    "title": "数据库",
+    "path": "路径",
+    "size": "大小"
+  },
+  "models": {
+    "title": "模型状态",
+    "available": "可用",
+    "unavailable": "不可用"
+  }
+}

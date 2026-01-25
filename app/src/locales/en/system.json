@@ -1,0 +1,29 @@
+{
+  "title": "System Info",
+  "system": {
+    "title": "System",
+    "platform": "Platform",
+    "version": "Version",
+    "machine": "Architecture",
+    "processor": "Processor",
+    "pythonVersion": "Python Version",
+    "pythonExecutable": "Python Executable"
+  },
+  "exiftool": {
+    "title": "ExifTool",
+    "available": "Available",
+    "unavailable": "Unavailable",
+    "path": "Path",
+    "version": "Version"
+  },
+  "database": {
+    "title": "Database",
+    "path": "Path",
+    "size": "Size"
+  },
+  "models": {
+    "title": "Model Status",
+    "available": "Available",
+    "unavailable": "Unavailable"
+  }
+}

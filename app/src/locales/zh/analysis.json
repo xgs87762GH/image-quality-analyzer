@@ -1,0 +1,29 @@
+{
+  "title": "图像分析",
+  "confirm": {
+    "title": "确认分析",
+    "message": "将选中的 {{count}} 张图片加入分析队列，确定继续？",
+    "messageAll": "未选中任何图片。将把全部 {{total}} 张图片（非当前页）加入分析队列，确定继续？"
+  },
+  "progress": {
+    "title": "分析进度",
+    "current": "进度",
+    "analyzing": "正在分析",
+    "processed": "已处理",
+    "batchConcurrent": "本批次 {{count}} 张同时分析",
+    "remaining": "剩余",
+    "total": "共",
+    "success": "成功",
+    "failed": "失败",
+    "currentImage": "当前图片",
+    "complete": "分析完成",
+    "completeMessage": "已完成 {{success}} 张，失败 {{failed}} 张",
+    "aiWarning": "AI 分析警告"
+  },
+  "status": {
+    "pending": "等待中",
+    "analyzing": "分析中",
+    "completed": "已完成",
+    "error": "失败"
+  }
+}

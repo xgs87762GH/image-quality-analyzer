@@ -1,0 +1,13 @@
+{
+  "name": "image-quality-analyzer",
+  "private": true,
+  "description": "Image Quality Analyzer - monorepo scripts",
+  "scripts": {
+    "dev": "concurrently -n fe,be -c cyan,magenta \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "npm run dev --prefix app",
+    "dev:backend": "node scripts/run-backend.js"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

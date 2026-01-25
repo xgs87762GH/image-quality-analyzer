@@ -27,11 +27,11 @@
 ├── repositories/       # 仓储层（数据访问抽象）
 ├── services/           # 服务层（业务逻辑整合）
 ├── utils/              # 工具类（通用功能）
-└── web/                # Web层（接口和视图）
+└── backend/            # 后端 API 层（Flask REST API + WebSocket）
 ```
 
 ### 分层架构
-1. **Web层** (`web/`) - 处理HTTP请求，调用服务层
+1. **后端 API 层** (`backend/`) - 处理 HTTP 请求、WebSocket，调用服务层
 2. **服务层** (`services/`) - 业务逻辑整合，协调多个分析器/仓储
 3. **业务逻辑层** (`analyzers/`, `metadata/`) - 具体业务功能实现
 4. **数据访问层** (`repositories/`, `database/`) - 数据持久化

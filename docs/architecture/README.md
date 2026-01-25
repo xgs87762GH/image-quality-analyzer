@@ -94,24 +94,20 @@ image-quality-analyzer/
 │   ├── filter.py            # 筛选工具（基于XMP元数据）
 │   └── query.py             # 数据库查询工具（查询、统计、重复检测）
 │
-├── web/                     # Web界面模块（完全独立）
+├── backend/                  # 后端 API 服务（Flask REST API + WebSocket）
 │   ├── __init__.py
-│   ├── app.py               # Flask应用（包含图片文件服务路由）
-│   ├── views.py             # 视图路由（HTML页面）
-│   ├── api/                 # API模块（按功能拆分）
-│   │   ├── __init__.py      # API蓝图注册
-│   │   ├── statistics.py   # 统计相关API (/api/stats)
-│   │   └── images.py        # 图像相关API (CRUD、搜索、删除等)
-│   ├── api_legacy.py        # 遗留API（兼容旧版本，包含AI分析等）
-│   ├── templates/           # HTML模板
-│   └── static/              # 静态文件
-│       ├── css/             # 样式文件
-│       └── js/              # JavaScript文件
-│           └── modules/     # 模块化JS（高内聚低耦合设计）
+│   ├── app.py               # Flask 应用（图片文件服务等）
+│   ├── api/                 # REST API 模块
+│   │   ├── __init__.py      # API 蓝图注册
+│   │   ├── statistics.py   # 统计相关 API (/api/stats)
+│   │   ├── images.py        # 图像相关 API (CRUD、搜索、删除等)
+│   │   └── ai.py            # AI 相关 API（Ollama 模型等）
+│   ├── websocket/           # WebSocket 服务（分析进度等）
+│   └── api_legacy.py        # 遗留 API（逐步迁移到 api/）
 │
 ├── scripts/                 # 脚本
 │   ├── init_database.py     # 数据库初始化
-│   ├── run_web.py           # Web启动脚本（主启动方式）
+│   ├── run_web.py           # 后端启动脚本（主启动方式）
 │   ├── migrate_database.py  # 数据库迁移
 │   ├── start_project.ps1    # PowerShell一键启动脚本
 │   ├── setup_env.ps1        # Windows环境设置脚本
@@ -275,7 +271,7 @@ Database (SQLite)
 ```
 HTTP Request
     ↓
-API Layer (web/api/)
+API Layer (backend/api/)
     ↓
 Service Factory (获取服务实例)
     ↓
@@ -293,7 +289,7 @@ JSON Response
 ### 依赖方向
 
 ```
-web/          → services/ → repositories/ → database/
+backend/      → services/ → repositories/ → database/
 cli/          → services/ → repositories/ → database/
 processors/   → services/ → repositories/ → database/
 tests/        → services/ → repositories/ → database/
@@ -316,7 +312,7 @@ tests/        → services/ → repositories/ → database/
   - `analyzers/` - 图像分析相关
   - `services/` - 业务逻辑
   - `repositories/` - 数据访问
-  - `web/` - Web界面（完全独立）
+  - `backend/` - 后端 API 服务（Flask REST API + WebSocket）
 
 - **模块内部紧密相关**: 同一模块内的代码高度相关
   - `analyzers/` 中的所有分析器都处理图像分析
@@ -351,7 +347,7 @@ tests/        → services/ → repositories/ → database/
 
 ## API路由结构
 
-### 新API模块 (web/api/)
+### 新 API 模块 (backend/api/)
 - `/api/images` - GET: 获取图像列表（支持分页、筛选）
 - `/api/images/<id>` - GET: 获取图像详情
 - `/api/images/<id>/metadata` - GET: 获取图像完整元数据（EXIF、GPS、XMP等）
@@ -364,10 +360,10 @@ tests/        → services/ → repositories/ → database/
 - `/api/evaluations/clear` - POST: 清理评估数据
 - `/api/stats` - GET: 获取统计信息
 
-### 图片服务路由 (web/app.py)
+### 图片服务路由 (backend/app.py)
 - `/images/<id>/file` - GET: 提供原图文件（直接使用原图，不再生成缩略图）
 
-### 遗留API (web/api_legacy.py)
+### 遗留 API (backend/api_legacy.py)
 - 包含AI分析、模型管理、自动导入等端点
 - 逐步迁移到新API模块
 

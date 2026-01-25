@@ -1,6 +1,7 @@
 """ExifTool 执行器 - 统一处理 ExifTool 命令执行（高内聚、低耦合）"""
 import subprocess
 import platform
+import os
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from utils.exiftool_manager import ExifToolManager
@@ -119,8 +120,19 @@ class ExifToolExecutor:
         cwd = self._get_working_directory()
         
         try:
-            # Windows上，subprocess.run需要正确处理中文路径
-            # 使用shell=False，但确保路径是有效的
+            # Windows上，subprocess.run需要正确处理中文路径和输出
+            # 设置环境变量确保UTF-8编码
+            env = os.environ.copy()
+            if platform.system() == 'Windows':
+                # Windows上设置UTF-8编码环境变量
+                env['PYTHONIOENCODING'] = 'utf-8'
+                # 尝试设置控制台代码页为UTF-8（如果可能）
+                try:
+                    import subprocess as sp
+                    sp.run(['chcp', '65001'], shell=True, capture_output=True, check=False)
+                except:
+                    pass  # 如果chcp失败，继续执行
+            
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -129,6 +141,7 @@ class ExifToolExecutor:
                 errors='replace',  # 遇到无法解码的字符时替换为占位符
                 timeout=timeout,
                 cwd=cwd,
+                env=env,  # 使用设置了编码的环境变量
                 stdin=subprocess.DEVNULL,  # 避免等待输入
                 creationflags=subprocess.CREATE_NO_WINDOW if platform.system() == 'Windows' else 0
             )

@@ -63,31 +63,33 @@ python -c "from database.connection import get_db; db = get_db(); print('✓ 数
 
 ## 快速启动
 
-### 方式1: 直接启动（推荐）
+项目为前后端分离：后端 API（含 WebSocket）运行在 5000 端口，前端 React 应用运行在 5173 端口。**需同时启动两者**才能使用 Web 界面。
+
+### 1. 启动后端 API
 
 ```powershell
-# 1. 激活conda环境
-conda activate image_quality
-
-# 2. 启动Web服务
+conda activate image_quality   # 或你的虚拟环境
 python scripts/run_web.py
 ```
 
-然后在浏览器中访问：**http://localhost:5000**
+后端地址：**http://localhost:5000**（仅 API，浏览器不直接访问）
 
-### 方式2: 使用启动脚本（自动处理环境）
+### 2. 启动前端应用
 
-**Windows批处理:**
-```cmd
-start.bat
-```
-
-**PowerShell:**
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/start_project.ps1
+cd app
+npm install   # 首次需安装依赖
+npm run dev
 ```
 
-**详细启动说明**: 查看 [启动指南](./STARTUP_GUIDE.md)
+然后在浏览器中访问：**http://localhost:5173**
+
+### 使用启动脚本（可选）
+
+**Windows 批处理:** `start.bat`  
+**PowerShell:** `powershell -ExecutionPolicy Bypass -File scripts/start_project.ps1`
+
+详见 [启动指南](./STARTUP_GUIDE.md)。
 
 #### 命令行批量处理
 
@@ -101,31 +103,14 @@ python -m cli.main -i "目录1" "目录2" "目录3"
 
 ## 基本使用
 
-### Web界面使用
+### Web 界面使用
 
-1. **启动Web服务**
-
-   ```bash
-   python scripts/run_web.py
-   ```
-2. **访问界面**
-
-   - 打开浏览器访问 http://localhost:5000
-   - 首次使用需要配置图片源目录（在设置中）
-3. **导入图片**
-
-   - 系统会自动从配置的目录导入图片
-   - 或手动点击"批量导入"
-4. **分析图片**
-
-   - 选择要分析的图片
-   - 点击"分析选中图片"
-   - 等待分析完成
-5. **查看结果**
-
-   - 在图片列表中查看质量评分
-   - 点击图片查看详细信息
-   - 使用筛选功能查找特定质量的图片
+1. **启动后端与前端**（见上方「快速启动」）
+2. **访问界面**：打开浏览器访问 http://localhost:5173
+3. **配置**：首次使用需在设置中配置图片源目录
+4. **导入图片**：自动从配置目录导入，或手动「批量导入」
+5. **分析图片**：选择图片 → 「分析选中图片」→ 等待完成
+6. **查看结果**：列表查看评分，点击卡片查看详情，使用筛选查找
 
 ### 命令行使用
 
@@ -147,52 +132,31 @@ python -m cli.filter --rating 4 --output "高质量图片"
 
 **A:** 确保有写入权限，检查 `data/` 目录是否存在。
 
-### Q: Web界面无法访问？
+### Q: Web 界面无法访问？
 
-**A:**
-
-- 检查端口5000是否被占用
-- 确认防火墙设置
-- 查看日志文件 `logs/image_quality.log`
+**A:** 确认后端（5000）和前端（5173）均已启动；检查端口占用与防火墙；查看 `logs/image_quality.log`。
 
 ### Q: 图片分析很慢？
 
-**A:**
-
-- 关闭审美评分功能（在设置中）
-- 减少并发分析数量
-- 使用GPU加速（如果可用）
+**A:** 可在设置中关闭审美评分；若可用，使用 GPU 加速。
 
 ### Q: 如何配置AI模型？
 
 **A:** 查看 [AI模型配置指南](../guides/ai-models.md)
 
-### Q: 端口5000权限错误？
+### Q: 端口 5000 权限错误？
 
-**A:** 这是Windows系统对端口的访问限制，解决方法：
-1. **以管理员权限运行PowerShell**（推荐）
-   - 右键点击PowerShell → 以管理员身份运行
-   - 然后运行启动命令
-2. **检查端口占用**
-   ```powershell
-   netstat -ano | findstr :5000
-   # 如果被占用，结束进程：taskkill /PID XXXX /F
-   ```
-3. **检查防火墙设置**
-   - 确保防火墙允许Python访问网络
-
-详细说明查看 [启动指南](./STARTUP_GUIDE.md)
+**A:** Windows 对部分端口有限制。可：① 以管理员权限运行 PowerShell 再启动；② 检查占用 `netstat -ano | findstr :5000`，必要时 `taskkill /PID XXXX /F`；③ 确认防火墙允许 Python 访问网络。详见 [启动指南](./STARTUP_GUIDE.md)。
 
 ## 启动文件说明
 
-项目中的启动相关文件：
+- **`scripts/run_web.py`** ⭐ 启动后端 API（Flask + WebSocket，端口 5000）
+- **`app/`** 前端 React 应用，`npm run dev` 后访问 http://localhost:5173
+- **`start.bat`** 🪟 Windows 一键启动（如已配置）
+- **`scripts/start_project.ps1`** 💻 PowerShell 一键启动（如已配置）
+- **`main.py`** 命令行工具入口（非 Web 界面）
 
-- **`scripts/run_web.py`** ⭐ - 启动Web界面（端口5000）
-- **`start.bat`** 🪟 - Windows批处理一键启动
-- **`scripts/start_project.ps1`** 💻 - PowerShell一键启动
-- **`main.py`** - 命令行工具入口（不是启动Web界面）
-
-**详细说明**: 查看 [启动指南](./STARTUP_GUIDE.md)
+详见 [启动指南](./STARTUP_GUIDE.md)。
 
 ## 下一步
 

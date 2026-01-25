@@ -1,0 +1,10 @@
+{
+  "title": "回收站",
+  "empty": "回收站为空",
+  "actions": {
+    "restore": "恢复",
+    "permanentDelete": "永久删除",
+    "confirmPermanentDelete": "确认永久删除",
+    "confirmPermanentDeleteMessage": "确定要永久删除该图像吗？此操作不可恢复。"
+  }
+}

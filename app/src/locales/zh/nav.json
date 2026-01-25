@@ -1,0 +1,17 @@
+{
+  "title": "图像质量分析器",
+  "menu": {
+    "home": "图像列表",
+    "statistics": "统计信息",
+    "duplicates": "重复检测",
+    "trash": "回收站",
+    "system": "系统信息",
+    "settings": "设置"
+  },
+  "actions": {
+    "search": "搜索",
+    "analyze": "分析图片",
+    "cleanup": "清理脏数据",
+    "selectMode": "选择模式"
+  }
+}

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""启动Web界面"""
+"""启动后端 API 服务（Flask + WebSocket）"""
 import sys
 from pathlib import Path
 
@@ -10,7 +10,7 @@ sys.path.insert(0, str(project_root))
 
 from utils.encoding import setup_console_encoding
 from database.connection import init_database
-from web.app import create_app
+from backend.app import create_app
 from utils.exiftool_manager import ExifToolManager
 
 setup_console_encoding()
@@ -66,17 +66,19 @@ if __name__ == '__main__':
         print(f"✓ ExifTool已就绪: {exiftool_path}")
     
     app = create_app()
+    import backend.websocket
+    socketio = backend.websocket.socketio
     print("\n" + "="*50)
-    print("Web界面已启动！")
+    print("后端 API 已启动！（含 WebSocket）")
     print("访问地址: http://localhost:5000")
     print("="*50 + "\n")
-    
+
     # Windows权限问题解决方案：
     # 1. 使用127.0.0.1而不是0.0.0.0（已设置）
     # 2. 如果仍有问题，尝试以管理员权限运行
     # 3. 或检查端口5000是否被占用
     try:
-        app.run(host='127.0.0.1', port=5000, debug=True, use_reloader=False)
+        socketio.run(app, host='127.0.0.1', port=5000, debug=True, use_reloader=False)
     except OSError as e:
         if "以一种访问权限不允许的方式做了一个访问套接字的尝试" in str(e) or "permission denied" in str(e).lower():
             print("\n" + "="*50)

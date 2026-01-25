@@ -1,0 +1,30 @@
+{
+  "button": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "refresh": "Refresh",
+    "close": "Close",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "reset": "Reset"
+  },
+  "status": {
+    "loading": "Loading…",
+    "error": "Error",
+    "empty": "No data",
+    "success": "Success",
+    "failed": "Failed",
+    "pending": "Pending"
+  },
+  "message": {
+    "operationSuccess": "Operation successful",
+    "operationFailed": "Operation failed",
+    "pleaseWait": "Please wait…",
+    "noData": "No data available"
+  }
+}

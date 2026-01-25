@@ -1,0 +1,15 @@
+{
+  "title": "Statistics",
+  "cards": {
+    "totalImages": "Total Images",
+    "assessed": "Assessed",
+    "unassessed": "Unassessed",
+    "avgScore": "Avg Score"
+  },
+  "charts": {
+    "labelDistribution": "Label Distribution",
+    "ratingDistribution": "Rating Distribution",
+    "qualityDistribution": "Quality Distribution"
+  },
+  "noData": "No statistics data"
+}

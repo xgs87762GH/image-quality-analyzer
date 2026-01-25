@@ -1,0 +1,10 @@
+{
+  "title": "Trash",
+  "empty": "Trash is empty",
+  "actions": {
+    "restore": "Restore",
+    "permanentDelete": "Permanent Delete",
+    "confirmPermanentDelete": "Confirm Permanent Delete",
+    "confirmPermanentDeleteMessage": "Are you sure you want to permanently delete this image? This action cannot be undone."
+  }
+}

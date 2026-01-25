@@ -229,6 +229,7 @@ class Metadata:
     @classmethod
     def create_table(cls, db: 'DatabaseConnection'):
         """创建元数据表"""
+        # 先创建基础表结构
         db.execute(f"""
             CREATE TABLE IF NOT EXISTS {cls.TABLE_NAME} (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -244,6 +245,19 @@ class Metadata:
                 UNIQUE(image_id)
             )
         """)
+        
+        # 检查并添加 ai_analysis 字段（如果不存在）
+        try:
+            db.execute(f"ALTER TABLE {cls.TABLE_NAME} ADD COLUMN ai_analysis TEXT")
+        except Exception:
+            pass  # 字段已存在，忽略错误
+        
+        # 检查并添加 evaluations 字段（如果不存在）
+        try:
+            db.execute(f"ALTER TABLE {cls.TABLE_NAME} ADD COLUMN evaluations TEXT")
+        except Exception:
+            pass  # 字段已存在，忽略错误
+        
         db.execute(f"CREATE INDEX IF NOT EXISTS idx_image_id ON {cls.TABLE_NAME}(image_id)")
         db.execute(f"CREATE INDEX IF NOT EXISTS idx_xmp_rating ON {cls.TABLE_NAME}(xmp_rating)")
         db.execute(f"CREATE INDEX IF NOT EXISTS idx_xmp_label ON {cls.TABLE_NAME}(xmp_label)")

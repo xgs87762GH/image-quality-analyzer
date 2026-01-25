@@ -54,11 +54,13 @@ class MetadataReader:
                     image_path_str = image_path_str.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
             
             # 使用exiftool读取所有元数据（JSON格式）
+            # 注意：Windows上需要确保UTF-8编码
             args = [
                 "-j",  # JSON输出
-                "-G",  # 按组组织（EXIF、GPS、XMP等）
+                "-G",  # 按组组织（EXIF、GPS、XMP等），输出格式为 "EXIF:FieldName"
                 "-a",  # 复制所有标签（包括重复的）
                 "-s",  # 使用短标签名
+                "-charset", "utf8",  # 确保输出使用UTF-8编码
                 image_path_str
             ]
             
@@ -127,11 +129,23 @@ class MetadataReader:
                 value = re.sub(r'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]', '', value)
                 # 确保是有效的UTF-8
                 try:
-                    value.encode('utf-8')
+                    # 尝试编码/解码以确保是有效的UTF-8
+                    value.encode('utf-8').decode('utf-8')
                 except (UnicodeEncodeError, UnicodeDecodeError):
-                    value = value.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
+                    # 如果编码失败，尝试修复（但可能丢失部分信息）
+                    try:
+                        value = value.encode('utf-8', errors='ignore').decode('utf-8', errors='ignore')
+                    except:
+                        # 如果还是失败，使用replace模式
+                        value = value.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
             elif isinstance(value, list):
-                return [clean_value(item) for item in value]
+                # 对于数组，清理每个元素并去重（如果是字符串数组）
+                cleaned_list = [clean_value(item) for item in value]
+                # 如果是字符串数组，去重
+                if cleaned_list and all(isinstance(item, str) for item in cleaned_list):
+                    # 使用dict.fromkeys保持顺序并去重
+                    cleaned_list = list(dict.fromkeys(cleaned_list))
+                return cleaned_list
             elif isinstance(value, dict):
                 return {k: clean_value(v) for k, v in value.items()}
             return value

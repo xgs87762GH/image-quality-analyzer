@@ -1,0 +1,12 @@
+{
+  "required": "This field is required",
+  "invalid": "Invalid format",
+  "minLength": "At least {{min}} characters required",
+  "maxLength": "Maximum {{max}} characters",
+  "invalidEmail": "Please enter a valid email address",
+  "invalidUrl": "Please enter a valid URL",
+  "networkError": "Network error, please check your connection",
+  "serverError": "Server error",
+  "notFound": "Not found",
+  "unauthorized": "Unauthorized"
+}

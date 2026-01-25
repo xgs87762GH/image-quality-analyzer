@@ -1,0 +1,12 @@
+{
+  "title": "重复检测",
+  "empty": "未发现重复图像",
+  "group": {
+    "title": "重复组（{{count}} 张）",
+    "hash": "哈希值"
+  },
+  "actions": {
+    "keep": "保留",
+    "delete": "删除"
+  }
+}

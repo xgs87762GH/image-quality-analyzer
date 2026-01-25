@@ -1,0 +1,29 @@
+{
+  "title": "Image Analysis",
+  "confirm": {
+    "title": "Confirm Analysis",
+    "message": "Add {{count}} selected image(s) to the analysis queue?",
+    "messageAll": "No images selected. Add all {{total}} images (not just this page) to the analysis queue?"
+  },
+  "progress": {
+    "title": "Analysis Progress",
+    "current": "Progress",
+    "analyzing": "Analyzing",
+    "processed": "Processed",
+    "batchConcurrent": "{{count}} analyzing in this batch",
+    "remaining": "Remaining",
+    "total": "Total",
+    "success": "Success",
+    "failed": "Failed",
+    "currentImage": "Current image",
+    "complete": "Complete",
+    "completeMessage": "{{success}} done, {{failed}} failed",
+    "aiWarning": "AI warning"
+  },
+  "status": {
+    "pending": "Pending",
+    "analyzing": "Analyzing",
+    "completed": "Completed",
+    "error": "Failed"
+  }
+}

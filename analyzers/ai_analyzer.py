@@ -108,31 +108,48 @@ class AIAnalyzer(BaseAnalyzer):
             return {'success': False, 'error': f'AI模型不可用: {self.model_name}'}
         
         try:
+            self.logger.info(f"[AIAnalyzer] 开始分析图像: {image_path}")
+            self.logger.info(f"[AIAnalyzer] 评估问题数量: {len(evaluation_questions) if evaluation_questions else 0}")
+            if evaluation_questions:
+                self.logger.info(f"[AIAnalyzer] 评估问题详情: {evaluation_questions}")
+            
             # 构建包含评估问题的提示词（高内聚：提示词构建逻辑集中）
             enhanced_prompt = self._prompt_builder.build_evaluation_prompt(
                 prompt, evaluation_questions or []
             )
+            self.logger.info(f"[AIAnalyzer] 构建的提示词长度: {len(enhanced_prompt)}")
+            self.logger.debug(f"[AIAnalyzer] 提示词内容: {enhanced_prompt[:500]}...")  # 只打印前500字符
             
             # 调用AI模型进行分析（低耦合：通过接口调用）
+            self.logger.info(f"[AIAnalyzer] 调用AI模型: {self.model_name}")
             ai_result = self._ai_model.analyze(image_path, enhanced_prompt)
+            self.logger.info(f"[AIAnalyzer] AI模型响应: success={ai_result.get('success')}")
             
             if not ai_result.get('success'):
+                self.logger.warning(f"[AIAnalyzer] AI分析失败: {ai_result.get('error')}")
                 return ai_result
             
             analysis_text = ai_result.get('analysis', '')
+            self.logger.info(f"[AIAnalyzer] 分析文本长度: {len(analysis_text) if analysis_text else 0}")
+            self.logger.debug(f"[AIAnalyzer] 分析文本内容: {analysis_text[:500]}...")  # 只打印前500字符
             
             # 解析评估结果（高内聚：评估结果解析逻辑集中）
             evaluations = []
             if evaluation_questions:
+                self.logger.info(f"[AIAnalyzer] 开始解析评估结果...")
                 evaluations = self._evaluation_parser.parse(analysis_text, evaluation_questions)
+                self.logger.info(f"[AIAnalyzer] 解析后的评估结果数量: {len(evaluations)}")
+                self.logger.info(f"[AIAnalyzer] 评估结果详情: {evaluations}")
             
-            return {
+            result = {
                 'success': True,
                 'model': self.model_name,
                 'analysis': analysis_text,
                 'evaluations': evaluations,
                 'raw_response': ai_result.get('raw_response')
             }
+            self.logger.info(f"[AIAnalyzer] 返回结果: success=True, analysis长度={len(analysis_text) if analysis_text else 0}, evaluations数量={len(evaluations)}")
+            return result
         except Exception as e:
             self.logger.error(f"AI分析失败: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}

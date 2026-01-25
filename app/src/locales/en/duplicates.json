@@ -1,0 +1,12 @@
+{
+  "title": "Duplicates",
+  "empty": "No duplicate images found",
+  "group": {
+    "title": "Duplicate Group ({{count}} images)",
+    "hash": "Hash"
+  },
+  "actions": {
+    "keep": "Keep",
+    "delete": "Delete"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "title": "统计信息",
+  "cards": {
+    "totalImages": "总图像数",
+    "assessed": "已分析",
+    "unassessed": "未分析",
+    "avgScore": "平均质量分"
+  },
+  "charts": {
+    "labelDistribution": "标签分布",
+    "ratingDistribution": "评级分布",
+    "qualityDistribution": "质量分数分布"
+  },
+  "noData": "暂无统计数据"
+}

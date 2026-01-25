@@ -25,23 +25,35 @@ class MetadataRepository:
         
         Args:
             image_id: 图像ID
-            xmp_data: XMP数据字典
+            xmp_data: XMP数据字典（可包含 rating, label, subjects, description, ai_analysis, evaluations）
             
         Returns:
             元数据对象
         """
+        from utils.logger import get_logger
+        logger = get_logger()
+        
+        logger.info(f"[MetadataRepository] create_or_update: image_id={image_id}")
+        logger.info(f"[MetadataRepository] xmp_data keys: {list(xmp_data.keys())}")
+        logger.info(f"[MetadataRepository] ai_analysis in xmp_data: {'ai_analysis' in xmp_data}")
+        logger.info(f"[MetadataRepository] evaluations in xmp_data: {'evaluations' in xmp_data}")
+        
         # 检查是否已存在
         existing = self.find_by_image_id(image_id)
         
         if existing:
             # 更新现有记录
-            existing.xmp_rating = xmp_data.get('rating')
-            existing.xmp_label = xmp_data.get('label')
-            existing.xmp_subjects = ';'.join(xmp_data.get('subjects', []))
-            existing.xmp_description = xmp_data.get('description')
-            existing.ai_analysis = xmp_data.get('ai_analysis')
-            existing.evaluations = xmp_data.get('evaluations')
+            existing.xmp_rating = xmp_data.get('rating') if 'rating' in xmp_data else existing.xmp_rating
+            existing.xmp_label = xmp_data.get('label') if 'label' in xmp_data else existing.xmp_label
+            if 'subjects' in xmp_data:
+                existing.xmp_subjects = ';'.join(xmp_data.get('subjects', []))
+            existing.xmp_description = xmp_data.get('description') if 'description' in xmp_data else existing.xmp_description
+            if 'ai_analysis' in xmp_data:
+                existing.ai_analysis = xmp_data.get('ai_analysis')
+            if 'evaluations' in xmp_data:
+                existing.evaluations = xmp_data.get('evaluations')
             existing.updated_at = datetime.now()
+            logger.info(f"[MetadataRepository] 更新现有元数据: image_id={image_id}, ai_analysis={bool(existing.ai_analysis)}, evaluations={bool(existing.evaluations)}")
             return self.update(existing)
         
         # 创建新记录
@@ -49,27 +61,34 @@ class MetadataRepository:
             image_id=image_id,
             xmp_rating=xmp_data.get('rating'),
             xmp_label=xmp_data.get('label'),
-            xmp_subjects=';'.join(xmp_data.get('subjects', [])),
-            xmp_description=xmp_data.get('description')
+            xmp_subjects=';'.join(xmp_data.get('subjects', [])) if xmp_data.get('subjects') else None,
+            xmp_description=xmp_data.get('description'),
+            ai_analysis=xmp_data.get('ai_analysis'),
+            evaluations=xmp_data.get('evaluations')
         )
+        
+        logger.info(f"[MetadataRepository] 创建新元数据: image_id={image_id}, ai_analysis={bool(metadata.ai_analysis)}, evaluations={bool(metadata.evaluations)}")
         
         with self.db.transaction() as conn:
             cursor = conn.execute(
                 f"""
                 INSERT INTO {Metadata.TABLE_NAME}
-                (image_id, xmp_rating, xmp_label, xmp_subjects, xmp_description)
-                VALUES (?, ?, ?, ?, ?)
+                (image_id, xmp_rating, xmp_label, xmp_subjects, xmp_description, ai_analysis, evaluations)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     metadata.image_id,
                     metadata.xmp_rating,
                     metadata.xmp_label,
                     metadata.xmp_subjects,
-                    metadata.xmp_description
+                    metadata.xmp_description,
+                    metadata.ai_analysis,
+                    metadata.evaluations
                 )
             )
             metadata.id = cursor.lastrowid
         
+        logger.info(f"[MetadataRepository] 新元数据创建完成: id={metadata.id}")
         return metadata
     
     def find_by_id(self, metadata_id: int) -> Optional[Metadata]:
@@ -92,7 +111,14 @@ class MetadataRepository:
     
     def update(self, metadata: Metadata) -> Metadata:
         """更新元数据"""
+        from utils.logger import get_logger
+        logger = get_logger()
+        
         metadata.updated_at = datetime.now()
+        
+        logger.info(f"[MetadataRepository] 更新元数据: image_id={metadata.image_id}")
+        logger.info(f"[MetadataRepository] ai_analysis存在: {bool(metadata.ai_analysis)}, 长度: {len(metadata.ai_analysis) if metadata.ai_analysis else 0}")
+        logger.info(f"[MetadataRepository] evaluations存在: {bool(metadata.evaluations)}, 内容: {metadata.evaluations}")
         
         with self.db.transaction() as conn:
             conn.execute(
@@ -116,6 +142,7 @@ class MetadataRepository:
                 )
             )
         
+        logger.info(f"[MetadataRepository] 元数据更新完成: image_id={metadata.image_id}")
         return metadata
     
     def find_by_rating(self, rating: int) -> List[Metadata]:

@@ -66,6 +66,9 @@ htmlcov/
 .dmypy.json
 dmypy.json
 
+# Node（根目录 package.json 用于 dev 脚本）
+node_modules/
+
 # 项目特定
 thumbnails/
 thumbnails/**/*

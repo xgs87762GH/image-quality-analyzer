@@ -1,0 +1,17 @@
+{
+  "title": "Image Quality Analyzer",
+  "menu": {
+    "home": "Image List",
+    "statistics": "Statistics",
+    "duplicates": "Duplicates",
+    "trash": "Trash",
+    "system": "System Info",
+    "settings": "Settings"
+  },
+  "actions": {
+    "search": "Search",
+    "analyze": "Analyze Images",
+    "cleanup": "Cleanup",
+    "selectMode": "Select Mode"
+  }
+}

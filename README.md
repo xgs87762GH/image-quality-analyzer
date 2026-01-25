@@ -148,11 +148,27 @@ python scripts/init_database.py
 
 ### 启动Web界面
 
+**方式一：仅后端（传统 Flask 界面）**
+
 ```bash
 python scripts/run_web.py
 ```
 
 然后在浏览器中访问：**http://localhost:5000**
+
+**方式二：前端 + 后端同时启动（React 应用，推荐开发使用）**
+
+```bash
+# 1. 安装依赖（仅首次）
+npm install
+cd app && npm install
+
+# 2. 在项目根目录一条命令同时启动
+npm run dev
+```
+
+- 前端：**http://localhost:5173**
+- 后端 API：**http://localhost:5000**
 
 ### 命令行使用
 

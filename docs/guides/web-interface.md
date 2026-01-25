@@ -12,15 +12,19 @@
 
 ## 快速开始
 
-### 1. 启动Web界面
+### 1. 启动后端与前端
 
 ```bash
+# 终端1：启动后端 API
 python scripts/run_web.py
+
+# 终端2：启动前端应用
+cd app && npm install && npm run dev
 ```
 
 ### 2. 访问界面
 
-在浏览器中打开：**http://localhost:5000**
+在浏览器中打开：**http://localhost:5173**
 
 ## 页面功能
 

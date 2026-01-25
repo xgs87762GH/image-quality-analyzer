@@ -115,15 +115,44 @@ class QualityAnalyzer(BaseAnalyzer):
             except ImportError:
                 return None
             
-            # BRISQUE需要BGR格式
-            bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR) if len(image.shape) == 3 else cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+            # 检查模型文件是否存在（在尝试加载前检查，避免 OpenCV 输出错误信息）
+            import os
+            if not os.path.exists(model_path) or not os.path.exists(range_path):
+                # BRISQUE 模型文件不存在，静默返回 None（这是可选功能）
+                # 注意：BRISQUE 模型文件需要从 OpenCV 源码或官方资源下载
+                # 下载地址：https://github.com/opencv/opencv_contrib/tree/master/modules/quality/samples
+                return None
+            
+            # 临时抑制 OpenCV 的错误输出（cv2.error 会输出到 stderr）
+            import sys
+            from io import StringIO
+            old_stderr = sys.stderr
+            sys.stderr = StringIO()
+            
+            # 同时设置 OpenCV 日志级别为 ERROR（减少输出）
+            old_log_level = cv2.getLogLevel()
+            cv2.setLogLevel(cv2.LOG_LEVEL_ERROR)
             
             try:
+                # BRISQUE需要BGR格式
+                bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR) if len(image.shape) == 3 else cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+                
                 detector = QualityBRISQUE.create(model_path, range_path)
                 score = detector.compute(bgr)
-                return float(score[0])
+                result = float(score[0])
+                # 恢复设置
+                sys.stderr = old_stderr
+                cv2.setLogLevel(old_log_level)
+                return result
             except (FileNotFoundError, cv2.error):
-                # 模型文件不存在
+                # 恢复设置
+                sys.stderr = old_stderr
+                cv2.setLogLevel(old_log_level)
+                return None
+            except Exception:
+                # 恢复设置
+                sys.stderr = old_stderr
+                cv2.setLogLevel(old_log_level)
                 return None
         except Exception:
             return None
