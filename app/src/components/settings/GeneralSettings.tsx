@@ -3,6 +3,8 @@
  */
 import { useTranslation } from 'react-i18next'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 
 const PAGE_SIZES = [10, 20, 50, 100] as const
 
@@ -14,27 +16,29 @@ export function GeneralSettings() {
     <div className="space-y-6">
       <div className="space-y-2">
         <label className="text-sm font-medium">{t('general.itemsPerPage')}</label>
-        <select
-          value={general.itemsPerPage}
-          onChange={(e) => setGeneral({ itemsPerPage: Number(e.target.value) })}
-          className="w-full max-w-xs px-3 py-2 border rounded-lg bg-background"
+        <Select
+          value={String(general.itemsPerPage)}
+          onValueChange={(value) => setGeneral({ itemsPerPage: Number(value) })}
         >
-          {PAGE_SIZES.map((n) => (
-            <option key={n} value={n}>
-              {n} {t('general.sheets')}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-full max-w-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PAGE_SIZES.map((n) => (
+              <SelectItem key={n} value={String(n)}>
+                {n} {t('general.sheets')}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <p className="text-xs text-muted-foreground">{t('general.itemsPerPageHint')}</p>
       </div>
 
       <div className="space-y-2">
         <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={general.autoAnalyze}
-            onChange={(e) => setGeneral({ autoAnalyze: e.target.checked })}
-            className="rounded border-input"
+            onCheckedChange={(checked) => setGeneral({ autoAnalyze: checked as boolean })}
           />
           <span className="text-sm font-medium">{t('general.autoAnalyze')}</span>
         </label>

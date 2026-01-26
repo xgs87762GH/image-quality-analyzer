@@ -4,6 +4,8 @@
 import { useTranslation } from 'react-i18next'
 import { Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { useSettingsStore } from '@/stores/settingsStore'
 
 export function EvaluationSettings() {
@@ -77,13 +79,13 @@ export function EvaluationSettings() {
             <label className="text-xs text-muted-foreground w-16">
               {t('evaluation.issue')}
             </label>
-            <input
+            <Input
               type="text"
               value={q.issue}
               onChange={(e) =>
                 updateEvaluationQuestion(q.id, { issue: e.target.value })
               }
-              className="flex-1 px-2 py-1 border rounded bg-background text-sm"
+              className="flex-1 text-sm"
               placeholder={t('evaluation.issuePlaceholder') as string}
             />
           </div>
@@ -92,24 +94,27 @@ export function EvaluationSettings() {
             <label className="text-xs text-muted-foreground w-16">
               {t('evaluation.type')}
             </label>
-            <select
+            <Select
               value={q.return_type}
-              onChange={(e) => {
-                const newType = e.target.value as any
+              onValueChange={(newType) => {
                 updateEvaluationQuestion(q.id, {
-                  return_type: newType,
+                  return_type: newType as any,
                   // 切换类型时重置相关字段
                   options: newType === 'array' ? [] : undefined,
                   min: newType === 'float' ? 0 : undefined,
                   max: newType === 'float' ? 1 : undefined,
                 })
               }}
-              className="px-2 py-1 border rounded bg-background text-sm"
             >
-              <option value="array">{t('evaluation.typeArray')}</option>
-              <option value="float">{t('evaluation.typeFloat')}</option>
-              <option value="text">{t('evaluation.typeText')}</option>
-            </select>
+              <SelectTrigger className="text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="array">{t('evaluation.typeArray')}</SelectItem>
+                <SelectItem value="float">{t('evaluation.typeFloat')}</SelectItem>
+                <SelectItem value="text">{t('evaluation.typeText')}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {q.return_type === 'array' && (() => {
@@ -127,13 +132,13 @@ export function EvaluationSettings() {
                   ) : (
                     optionsArray.map((option, index) => (
                       <div key={index} className="flex gap-2 items-center">
-                        <input
+                        <Input
                           type="text"
                           value={option}
                           onChange={(e) =>
                             handleUpdateOption(q.id, index, e.target.value)
                           }
-                          className="flex-1 px-2 py-1 border rounded bg-background text-sm"
+                          className="flex-1 text-sm"
                           placeholder={t('evaluation.optionPlaceholder') as string}
                         />
                         <Button
@@ -168,7 +173,7 @@ export function EvaluationSettings() {
               <label className="text-xs text-muted-foreground w-16">
                 {t('evaluation.range')}
               </label>
-              <input
+              <Input
                 type="number"
                 value={q.min ?? ''}
                 onChange={(e) =>
@@ -176,11 +181,11 @@ export function EvaluationSettings() {
                     min: e.target.value === '' ? undefined : Number(e.target.value),
                   })
                 }
-                className="w-24 px-2 py-1 border rounded bg-background text-sm"
+                className="w-24 text-sm"
                 placeholder="0"
               />
               <span className="text-xs text-muted-foreground">~</span>
-              <input
+              <Input
                 type="number"
                 value={q.max ?? ''}
                 onChange={(e) =>
@@ -188,31 +193,36 @@ export function EvaluationSettings() {
                     max: e.target.value === '' ? undefined : Number(e.target.value),
                   })
                 }
-                className="w-24 px-2 py-1 border rounded bg-background text-sm"
+                className="w-24 text-sm"
                 placeholder="1"
               />
             </div>
           )}
 
           <div className="flex justify-end">
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => removeEvaluationQuestion(q.id)}
-              className="text-xs text-destructive hover:underline"
+              className="text-xs text-destructive hover:text-destructive"
             >
               {t('evaluation.remove')}
-            </button>
+            </Button>
           </div>
         </div>
       ))}
 
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={addEvaluationQuestion}
-        className="text-xs text-primary hover:underline"
+        className="text-xs"
       >
+        <Plus className="h-3 w-3 mr-1" />
         {t('evaluation.add')}
-      </button>
+      </Button>
     </div>
   )
 }

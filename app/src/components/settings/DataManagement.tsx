@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { settingsApiService } from '@/services/api/settings'
 import { useQueryClient } from '@tanstack/react-query'
@@ -100,12 +101,12 @@ export function DataManagement() {
           ))}
         </ul>
         <div className="flex gap-2">
-          <input
+          <Input
             type="text"
             value={newDir}
             onChange={(e) => setNewDir(e.target.value)}
             placeholder={t('data.directoryPlaceholder')}
-            className="flex-1 max-w-md px-3 py-2 border rounded-lg bg-background text-sm"
+            className="flex-1 max-w-md text-sm"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
@@ -137,12 +138,12 @@ export function DataManagement() {
       <div className="space-y-2">
         <label className="text-sm font-medium">{t('data.trashDir')}</label>
         <div className="flex gap-2">
-          <input
+          <Input
             type="text"
             value={trashDir}
             onChange={(e) => setTrashDir(e.target.value)}
             placeholder={t('data.trashDirPlaceholder')}
-            className="flex-1 max-w-md px-3 py-2 border rounded-lg bg-background"
+            className="flex-1 max-w-md"
           />
           <Button type="button" variant="secondary" size="sm" onClick={handleSaveTrashDir} disabled={loading}>
             {loading ? t('common:status.loading') : t('save')}

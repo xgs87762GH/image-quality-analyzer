@@ -133,8 +133,16 @@ def register_analysis_events(socketio):
                 
                 task_settings = task.settings
                 use_ai = task_settings.get("use_ai", False)
-                evaluation_questions = task_settings.get("evaluation_questions", [])
+                evaluation_questions = list(
+                    task_settings.get("evaluation_questions") or []
+                )
                 aesthetic_mode = task_settings.get("aesthetic_mode", "none")
+                # CLIP 模式不支持自定义评估问题，一律清空
+                if aesthetic_mode == "clip":
+                    evaluation_questions = []
+                    logger.debug(
+                        "[WebSocket] aesthetic_mode=clip，已忽略 evaluation_questions"
+                    )
                 concurrent_count = task_settings.get("concurrentCount", 1)
                 concurrent_count = max(1, min(10, int(concurrent_count)))
                 write_xmp = task_settings.get("write_xmp", True)
@@ -144,7 +152,7 @@ def register_analysis_events(socketio):
                     f"concurrent={concurrent_count}, pending={task.pending_queue.qsize()}"
                 )
                 
-                # 根据 settings 创建 AI 分析器（如果需要）
+                # 根据 settings 创建 AI 分析器（如需 use_ai、evaluation_questions 或 AI 审美）
                 ai_analyzer = None
                 if use_ai or evaluation_questions or aesthetic_mode == "ai":
                     from services.service_factory import ServiceFactory

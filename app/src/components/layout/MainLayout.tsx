@@ -108,11 +108,13 @@ export function MainLayout() {
       ollama_model: ai.ollama_model,
       ai_api_key: ai.ai_api_key || undefined,
       aesthetic_mode: analysis.aesthetic_mode,
-      // concurrentCount 已移除前端设置，后端使用默认值 1
       concurrentCount: 1,
     }
 
-    if (evaluation_questions.length > 0) {
+    // CLIP 模式不支持自定义评估问题，不传入
+    const allowEvaluation =
+      analysis.aesthetic_mode !== 'clip' && evaluation_questions.length > 0
+    if (allowEvaluation) {
       settings.evaluation_questions = evaluation_questions
     }
 
