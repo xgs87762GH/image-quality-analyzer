@@ -369,28 +369,48 @@ tests/        → services/ → repositories/ → database/
 
 ## 前端架构
 
-### JavaScript模块化设计
+### React + TypeScript 架构
 
-前端采用模块化设计，实现高内聚、低耦合：
+前端采用现代化的 React + TypeScript 架构，实现高内聚、低耦合：
 
-- **state.js** - 应用状态管理（单例模式）
-- **api-service.js** - API调用封装
-- **image-card.js** - 图像卡片渲染
-- **image-list-manager.js** - 图像列表管理
-- **search-manager.js** - 搜索功能
-- **selection-manager.js** - 选择功能
-- **batch-operations.js** - 批量操作
-- **analysis-manager.js** - 分析管理
-- **settings-manager.js** - 设置管理
-- **view-manager.js** - 视图管理
-- **index-manager.js** - 索引管理
-- **notification.js** - 通知系统
+#### 核心技术栈
+- **React 18** - UI框架
+- **TypeScript** - 类型安全
+- **React Router** - 路由管理
+- **Zustand** - 状态管理（轻量级）
+- **React Query (TanStack Query)** - 数据获取和缓存
+- **WebSocket** - 实时通信（分析进度）
+- **shadcn/ui** - UI组件库
+- **i18next** - 国际化支持
+- **Vite** - 构建工具
 
-### 模块间通信
+#### 目录结构
+```
+app/src/
+├── components/        # React组件
+│   ├── analysis/     # 分析相关组件
+│   ├── image/        # 图像相关组件
+│   ├── layout/       # 布局组件
+│   ├── settings/     # 设置组件
+│   ├── ui/           # UI基础组件（shadcn/ui）
+│   └── ...
+├── pages/            # 页面组件
+├── hooks/            # 自定义Hooks
+├── services/         # API服务层
+│   ├── api/          # REST API客户端
+│   └── websocket/    # WebSocket服务
+├── stores/           # Zustand状态管理
+├── types/            # TypeScript类型定义
+└── utils/            # 工具函数
+```
 
-- 通过事件系统（CustomEvent）进行模块间通信
-- 通过依赖注入组合模块
-- 状态集中管理，避免数据不一致
+#### 架构特点
+- **组件化设计**: 按功能模块划分组件，职责单一
+- **状态管理**: 使用Zustand进行轻量级状态管理
+- **数据获取**: 使用React Query管理服务器状态和缓存
+- **类型安全**: 完整的TypeScript类型定义
+- **实时通信**: WebSocket实现分析进度实时更新
+- **UI组件库**: 使用shadcn/ui提供一致的UI体验
 
 ## 测试策略
 
@@ -405,4 +425,8 @@ tests/        → services/ → repositories/ → database/
 - **缓存策略**: 服务工厂使用单例模式
 - **并发处理**: 支持并发分析（可配置）
 - **图片加载**: 直接使用原图，支持懒加载（lazy loading）
-- **前端优化**: 模块化加载，按需初始化
+- **前端优化**: 
+  - React组件懒加载
+  - 图片懒加载（lazy loading）
+  - React Query自动缓存和去重
+  - 代码分割和按需加载

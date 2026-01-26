@@ -191,7 +191,7 @@ file_path,quality_score,rating,label,blur_score,brightness,entropy
 **解决方案**:
 - 关闭审美评分
 - 限制图像格式
-- 减少并发数量
+- 后端默认并发数为1，可根据系统资源调整
 
 ### 问题：内存不足
 
