@@ -1,6 +1,6 @@
 /**
  * 设置页（通用 / 分析（含AI配置）/ 评估 / 数据管理）
- * CLIP 模式下不展示「评估问题」页签（不支持自定义评估问题）
+ * 评估问题只在 AI 模式下显示（CLIP 和 none 模式不支持自定义评估问题）
  */
 import { useMemo, useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -25,14 +25,16 @@ export function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general')
 
   const tabs = useMemo(() => {
-    if (aestheticMode === 'clip') {
+    // 只有 AI 模式时才显示评估问题页签
+    if (aestheticMode !== 'ai') {
       return ALL_TABS.filter((tab) => tab.id !== 'evaluation')
     }
     return [...ALL_TABS]
   }, [aestheticMode])
 
   useEffect(() => {
-    if (aestheticMode === 'clip' && activeTab === 'evaluation') {
+    // 如果切换到非 AI 模式且当前在评估页签，切换到通用页签
+    if (aestheticMode !== 'ai' && activeTab === 'evaluation') {
       setActiveTab('general')
     }
   }, [aestheticMode, activeTab])
@@ -69,7 +71,7 @@ export function SettingsPage() {
             <AnalysisSettings />
           </TabsContent>
 
-          {aestheticMode !== 'clip' && (
+          {aestheticMode === 'ai' && (
             <TabsContent value="evaluation" className="mt-6">
               <EvaluationSettings />
             </TabsContent>

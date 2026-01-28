@@ -65,7 +65,8 @@ def create_analysis_progress_message(
     status: str,
     result: Optional[Dict[str, Any]] = None,
     error: Optional[str] = None,
-    section: Optional[List[Dict[str, Any]]] = None
+    section: Optional[List[Dict[str, Any]]] = None,
+    task_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     创建分析进度消息（标准化格式）
@@ -80,6 +81,7 @@ def create_analysis_progress_message(
         result: 分析结果（可选）
         error: 错误信息（可选）
         section: 正在分析的图片列表（可选，格式：[{id, status, timestamp}]）
+        task_id: 任务ID（可选，用于前端区分不同批次）
         
     Returns:
         标准化的分析进度消息
@@ -110,6 +112,8 @@ def create_analysis_progress_message(
         data["error"] = error
     if section is not None:
         data["section"] = section  # 正在分析的图片列表
+    if task_id is not None:
+        data["task_id"] = task_id  # 任务ID，用于前端区分不同批次
     
     return create_message(
         status=message_status,

@@ -56,6 +56,10 @@ class ApiClient {
       // 后端返回格式：{ success: true, data: {...} }
       // 如果后端已经包含 success 字段，直接返回；否则包装
       if (data.success !== undefined) {
+        // 确保错误响应始终有 error 字段
+        if (!data.success && !data.error) {
+          data.error = '请求失败'
+        }
         return data as ApiResponse<T>
       }
       return {
@@ -105,6 +109,10 @@ class ApiClient {
       // 后端返回格式：{ success: true, data: {...} }
       // 如果后端已经包含 success 字段，直接返回；否则包装
       if (data.success !== undefined) {
+        // 确保错误响应始终有 error 字段
+        if (!data.success && !data.error) {
+          data.error = '请求失败'
+        }
         return data as ApiResponse<T>
       }
       return {

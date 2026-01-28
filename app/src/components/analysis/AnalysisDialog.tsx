@@ -17,16 +17,17 @@ interface AnalysisDialogProps {
   count: number
   /** 未选中时对应的全部图片总数（库内全部，非当前页） */
   totalAll?: number
-  onConfirm: () => void
+  onConfirm: () => void | Promise<void>
+  loading?: boolean
 }
 
-export function AnalysisDialog({ open, onOpenChange, count, totalAll = 0, onConfirm }: AnalysisDialogProps) {
+export function AnalysisDialog({ open, onOpenChange, count, totalAll = 0, onConfirm, loading = false }: AnalysisDialogProps) {
   const { t } = useTranslation(['analysis', 'common'])
 
   const message = count > 0
     ? t('analysis:confirm.message', { count })
     : t('analysis:confirm.messageAll', { total: totalAll })
-  const canConfirm = count > 0 || totalAll > 0
+  const canConfirm = (count > 0 || totalAll > 0) && !loading
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,11 +37,11 @@ export function AnalysisDialog({ open, onOpenChange, count, totalAll = 0, onConf
         </DialogHeader>
         <p className="text-sm text-muted-foreground">{message}</p>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             {t('common:button.cancel')}
           </Button>
           <Button onClick={onConfirm} disabled={!canConfirm}>
-            {t('common:button.confirm')}
+            {loading ? t('common:status.loading') : t('common:button.confirm')}
           </Button>
         </DialogFooter>
       </DialogContent>

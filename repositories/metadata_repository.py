@@ -53,7 +53,12 @@ class MetadataRepository:
             if 'evaluations' in xmp_data:
                 existing.evaluations = xmp_data.get('evaluations')
             existing.updated_at = datetime.now()
-            logger.info(f"[MetadataRepository] 更新现有元数据: image_id={image_id}, ai_analysis={bool(existing.ai_analysis)}, evaluations={bool(existing.evaluations)}")
+            logger.info(
+                f"[MetadataRepository] Updating existing metadata | "
+                f"image_id={image_id} | "
+                f"has_ai_analysis={bool(existing.ai_analysis)} | "
+                f"has_evaluations={bool(existing.evaluations)}"
+            )
             return self.update(existing)
         
         # 创建新记录
@@ -67,7 +72,12 @@ class MetadataRepository:
             evaluations=xmp_data.get('evaluations')
         )
         
-        logger.info(f"[MetadataRepository] 创建新元数据: image_id={image_id}, ai_analysis={bool(metadata.ai_analysis)}, evaluations={bool(metadata.evaluations)}")
+        logger.info(
+            f"[MetadataRepository] Creating new metadata | "
+            f"image_id={image_id} | "
+            f"has_ai_analysis={bool(metadata.ai_analysis)} | "
+            f"has_evaluations={bool(metadata.evaluations)}"
+        )
         
         with self.db.transaction() as conn:
             cursor = conn.execute(
@@ -88,7 +98,11 @@ class MetadataRepository:
             )
             metadata.id = cursor.lastrowid
         
-        logger.info(f"[MetadataRepository] 新元数据创建完成: id={metadata.id}")
+        logger.info(
+            f"[MetadataRepository] New metadata created | "
+            f"id={metadata.id} | "
+            f"image_id={metadata.image_id}"
+        )
         return metadata
     
     def find_by_id(self, metadata_id: int) -> Optional[Metadata]:
@@ -116,9 +130,13 @@ class MetadataRepository:
         
         metadata.updated_at = datetime.now()
         
-        logger.info(f"[MetadataRepository] 更新元数据: image_id={metadata.image_id}")
-        logger.info(f"[MetadataRepository] ai_analysis存在: {bool(metadata.ai_analysis)}, 长度: {len(metadata.ai_analysis) if metadata.ai_analysis else 0}")
-        logger.info(f"[MetadataRepository] evaluations存在: {bool(metadata.evaluations)}, 内容: {metadata.evaluations}")
+        logger.info(
+            f"[MetadataRepository] Updating metadata | "
+            f"image_id={metadata.image_id} | "
+            f"has_ai_analysis={bool(metadata.ai_analysis)} | "
+            f"ai_analysis_length={len(metadata.ai_analysis) if metadata.ai_analysis else 0} | "
+            f"has_evaluations={bool(metadata.evaluations)}"
+        )
         
         with self.db.transaction() as conn:
             conn.execute(
@@ -142,7 +160,10 @@ class MetadataRepository:
                 )
             )
         
-        logger.info(f"[MetadataRepository] 元数据更新完成: image_id={metadata.image_id}")
+        logger.info(
+            f"[MetadataRepository] Metadata update completed | "
+            f"image_id={metadata.image_id}"
+        )
         return metadata
     
     def find_by_rating(self, rating: int) -> List[Metadata]:

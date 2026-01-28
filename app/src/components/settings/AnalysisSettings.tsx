@@ -3,7 +3,7 @@
  */
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { settingsApiService } from '@/services/api/settings'
 import { getLogger } from '@/utils/logger'
@@ -23,9 +23,11 @@ const AI_MODELS = [
 
 export function AnalysisSettings() {
   const { t } = useTranslation('settings')
+  const queryClient = useQueryClient()
   const { analysis, setAnalysis, ai, setAI } = useSettingsStore()
   const isOllama = ai.ai_model === 'ollama'
   const [ollamaUrlChanged, setOllamaUrlChanged] = useState(false)
+  const [isManuallyRefreshing, setIsManuallyRefreshing] = useState(false)
 
   // 查询Ollama模型列表
   const {
@@ -54,8 +56,31 @@ export function AnalysisSettings() {
     setOllamaUrlChanged(true)
   }
 
+  /**
+   * 手动刷新Ollama模型列表
+   */
+  const handleRefreshModels = async () => {
+    if (!ai.ollama_base_url) {
+      logger.warn('Ollama URL为空，无法刷新模型列表')
+      return
+    }
+
+    setIsManuallyRefreshing(true)
+    try {
+      // 先使缓存失效，然后强制刷新
+      await queryClient.invalidateQueries({ queryKey: ['ollama-models', ai.ollama_base_url] })
+      await refetchModels()
+      logger.info('手动刷新Ollama模型列表成功')
+    } catch (error) {
+      logger.error('手动刷新Ollama模型列表失败', error instanceof Error ? error : new Error(String(error)))
+    } finally {
+      setIsManuallyRefreshing(false)
+    }
+  }
+
   const ollamaModels = ollamaModelsData?.success ? ollamaModelsData.data?.models || [] : []
   const hasModelsError = modelsError || (ollamaModelsData && !ollamaModelsData.success)
+  const isRefreshing = isLoadingModels || isManuallyRefreshing
 
   return (
     <div className="space-y-8">
@@ -93,131 +118,122 @@ export function AnalysisSettings() {
         </div>
       </div>
 
-      {/* AI配置部分 */}
-      <div className="space-y-6 border-t pt-6">
-        <h3 className="text-base font-semibold">{t('ai.title')}</h3>
-        
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <Checkbox
-              checked={ai.use_ai}
-              onCheckedChange={(checked) => setAI({ use_ai: checked as boolean })}
-            />
-            <span className="text-sm font-medium">{t('ai.useAi')}</span>
-          </label>
-          <p className="text-xs text-muted-foreground">{t('ai.useAiHint')}</p>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">{t('ai.model')}</label>
-          <Select
-            value={ai.ai_model}
-            onValueChange={(value) => setAI({ ai_model: value as typeof ai.ai_model })}
-          >
-            <SelectTrigger className="w-full max-w-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {AI_MODELS.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {t(m.labelKey)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">{t('ai.modelHint')}</p>
-        </div>
-
-        {isOllama && (
-          <>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('ai.ollamaUrl')}</label>
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  value={ai.ollama_base_url}
-                  onChange={(e) => handleOllamaUrlChange(e.target.value)}
-                  placeholder="http://localhost:11434"
-                  className="flex-1 max-w-md"
-                />
-                <Button
-                  type="button"
-                  onClick={() => refetchModels()}
-                  disabled={isLoadingModels || !ai.ollama_base_url}
-                  variant="outline"
-                >
-                  {isLoadingModels ? t('ai.refreshing') : t('ai.refresh')}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">{t('ai.ollamaUrlHint')}</p>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('ai.ollamaModel')}</label>
-              {isLoadingModels ? (
-                <div className="w-full max-w-md h-10 px-3 py-2 border rounded-lg bg-background text-sm text-muted-foreground flex items-center">
-                  {t('ai.loadingModels')}
-                </div>
-              ) : hasModelsError ? (
-                <div className="space-y-2">
-                  <Input
-                    type="text"
-                    value={ai.ollama_model}
-                    onChange={(e) => setAI({ ollama_model: e.target.value })}
-                    placeholder="llama3.2-vision"
-                    className="w-full max-w-md"
-                  />
-                  <p className="text-xs text-destructive">
-                    {t('ai.modelsError')}: {ollamaModelsData?.error || (modelsError as Error)?.message || t('ai.modelsErrorUnknown')}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{t('ai.ollamaModelHint')}</p>
-                </div>
-              ) : ollamaModels.length > 0 ? (
-                <Select
-                  value={ai.ollama_model}
-                  onValueChange={(value) => setAI({ ollama_model: value })}
-                >
-                  <SelectTrigger className="w-full max-w-md">
-                    <SelectValue placeholder={t('ai.selectModel')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ollamaModels.map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="space-y-2">
-                  <Input
-                    type="text"
-                    value={ai.ollama_model}
-                    onChange={(e) => setAI({ ollama_model: e.target.value })}
-                    placeholder="llama3.2-vision"
-                    className="w-full max-w-md"
-                  />
-                  <p className="text-xs text-muted-foreground">{t('ai.noModels')}</p>
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">{t('ai.ollamaModelHint')}</p>
-            </div>
-          </>
-        )}
-
-        {!isOllama && (
+      {/* AI配置部分 - 只在 aesthetic_mode === 'ai' 时显示 */}
+      {analysis.aesthetic_mode === 'ai' && (
+        <div className="space-y-6 border-t pt-6">
+          <h3 className="text-base font-semibold">{t('ai.title')}</h3>
+          
           <div className="space-y-2">
-            <label className="text-sm font-medium">{t('ai.apiKey')}</label>
-            <Input
-              type="password"
-              value={ai.ai_api_key}
-              onChange={(e) => setAI({ ai_api_key: e.target.value })}
-              placeholder="***"
-              className="w-full max-w-md"
-            />
-            <p className="text-xs text-muted-foreground">{t('ai.apiKeyHint')}</p>
+            <label className="text-sm font-medium">{t('ai.model')}</label>
+            <Select
+              value={ai.ai_model}
+              onValueChange={(value) => setAI({ ai_model: value as typeof ai.ai_model })}
+            >
+              <SelectTrigger className="w-full max-w-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AI_MODELS.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {t(m.labelKey)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{t('ai.modelHint')}</p>
           </div>
-        )}
-      </div>
+
+          {isOllama && (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('ai.ollamaUrl')}</label>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={ai.ollama_base_url}
+                    onChange={(e) => handleOllamaUrlChange(e.target.value)}
+                    placeholder="http://localhost:11434"
+                    className="flex-1 max-w-md"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleRefreshModels}
+                    disabled={isRefreshing || !ai.ollama_base_url}
+                    variant="outline"
+                  >
+                    {isRefreshing ? t('ai.refreshing') : t('ai.refresh')}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">{t('ai.ollamaUrlHint')}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('ai.ollamaModel')}</label>
+                {isRefreshing ? (
+                  <div className="w-full max-w-md h-10 px-3 py-2 border rounded-lg bg-background text-sm text-muted-foreground flex items-center">
+                    {t('ai.loadingModels')}
+                  </div>
+                ) : hasModelsError ? (
+                  <div className="space-y-2">
+                    <Input
+                      type="text"
+                      value={ai.ollama_model}
+                      onChange={(e) => setAI({ ollama_model: e.target.value })}
+                      placeholder="llama3.2-vision"
+                      className="w-full max-w-md"
+                    />
+                    <p className="text-xs text-destructive">
+                      {t('ai.modelsError')}: {ollamaModelsData?.error || (modelsError as Error)?.message || t('ai.modelsErrorUnknown')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{t('ai.ollamaModelHint')}</p>
+                  </div>
+                ) : ollamaModels.length > 0 ? (
+                  <Select
+                    value={ai.ollama_model}
+                    onValueChange={(value) => setAI({ ollama_model: value })}
+                  >
+                    <SelectTrigger className="w-full max-w-md">
+                      <SelectValue placeholder={t('ai.selectModel')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ollamaModels.map((model) => (
+                        <SelectItem key={model} value={model}>
+                          {model}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      type="text"
+                      value={ai.ollama_model}
+                      onChange={(e) => setAI({ ollama_model: e.target.value })}
+                      placeholder="llama3.2-vision"
+                      className="w-full max-w-md"
+                    />
+                    <p className="text-xs text-muted-foreground">{t('ai.noModels')}</p>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">{t('ai.ollamaModelHint')}</p>
+              </div>
+            </>
+          )}
+
+          {!isOllama && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t('ai.apiKey')}</label>
+              <Input
+                type="password"
+                value={ai.ai_api_key}
+                onChange={(e) => setAI({ ai_api_key: e.target.value })}
+                placeholder="***"
+                className="w-full max-w-md"
+              />
+              <p className="text-xs text-muted-foreground">{t('ai.apiKeyHint')}</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

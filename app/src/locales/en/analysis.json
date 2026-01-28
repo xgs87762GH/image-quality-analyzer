@@ -25,5 +25,10 @@
     "analyzing": "Analyzing",
     "completed": "Completed",
     "error": "Failed"
+  },
+  "errors": {
+    "createBatchFailed": "Failed to create analysis batch",
+    "batchProcessingError": "Batch processing error",
+    "batchNotFound": "Batch not found or cleaned up"
   }
 }

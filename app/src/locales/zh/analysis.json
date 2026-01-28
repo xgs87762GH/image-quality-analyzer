@@ -25,5 +25,10 @@
     "analyzing": "分析中",
     "completed": "已完成",
     "error": "失败"
+  },
+  "errors": {
+    "createBatchFailed": "创建分析批次失败",
+    "batchProcessingError": "批次处理出错",
+    "batchNotFound": "批次不存在或已清理"
   }
 }

@@ -8,7 +8,9 @@ from dataclasses import dataclass, field
 @dataclass
 class DatabaseConfig:
     """数据库配置"""
-    db_path: str = "data/image_quality.db"
+    # 默认使用 AppData 目录下的数据库，避免 E: 盘文件系统问题和权限问题
+    # 数据库会保存在 C:\Users\用户名\AppData\Local\ImageQualityAnalyzer\data\image_quality.db
+    db_path: str = field(default_factory=lambda: str(Path.home() / "AppData" / "Local" / "ImageQualityAnalyzer" / "data" / "image_quality.db"))
     pool_size: int = 5
     timeout: float = 20.0
     check_same_thread: bool = False
@@ -105,9 +107,24 @@ class Settings:
         
         注意：此方法在日志系统初始化之前调用，不能使用 get_logger()
         """
-        # 确保数据库目录存在
+        # 确保数据库目录存在（带错误处理）
         db_dir = Path(self.database.db_path).parent
-        db_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            db_dir.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, OSError) as e:
+            # 如果创建失败，尝试使用临时目录
+            import tempfile
+            temp_dir = Path(tempfile.gettempdir()) / "ImageQualityAnalyzer" / "data"
+            try:
+                temp_dir.mkdir(parents=True, exist_ok=True)
+                self.database.db_path = str(temp_dir / "image_quality.db")
+                print(f"警告: 无法在 {db_dir} 创建数据库目录，使用临时目录: {self.database.db_path}")
+            except Exception as e2:
+                # 如果临时目录也失败，使用项目目录（即使可能有问题）
+                fallback_dir = Path("data")
+                fallback_dir.mkdir(parents=True, exist_ok=True)
+                self.database.db_path = str(fallback_dir / "image_quality.db")
+                print(f"警告: 无法创建数据库目录，使用项目目录: {self.database.db_path}")
         
         # 确保日志目录存在
         log_dir = Path(self.logging.log_dir)

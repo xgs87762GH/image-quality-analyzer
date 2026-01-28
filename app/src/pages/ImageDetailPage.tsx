@@ -56,7 +56,13 @@ export function ImageDetailPage() {
   if (error || !detail) return <ErrorMessage message={data?.error ?? (error as Error)?.message ?? '加载失败'} />
 
   const hasQuality = detail.quality && Object.keys(detail.quality).length > 0
-  const hasAi = !!detail.ai_analysis
+  // 检查是否有AI分析结果：ai_analysis 或 evaluations（包括 metadata 中的）
+  const hasAi = !!(
+    detail.ai_analysis || 
+    detail.evaluations ||
+    detail.metadata?.ai_analysis ||
+    detail.metadata?.evaluations
+  )
 
   return (
     <div className="space-y-6">
@@ -99,8 +105,8 @@ export function ImageDetailPage() {
             <TabsContent value="ai">
               {hasAi ? (
                 <AIAnalysis
-                  aiAnalysis={detail.ai_analysis!}
-                  evaluations={detail.evaluations}
+                  aiAnalysis={detail.ai_analysis || detail.metadata?.ai_analysis}
+                  evaluations={detail.evaluations || detail.metadata?.evaluations}
                 />
               ) : (
                 <p className="text-muted-foreground text-sm">{t('detail.noAi')}</p>

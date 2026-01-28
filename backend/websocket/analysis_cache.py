@@ -235,25 +235,37 @@ class AnalysisTaskCache:
                 self._logger.debug(f"[分析缓存] 无进行中任务，无法追加: session_id={session_id}")
                 return None
             
-            # 去重：检查是否已在 image_ids 或 section（正在分析）中
-            # 先对输入的 image_ids 去重
+            # 去重逻辑：
+            # 1. 先对输入的 image_ids 去重
+            # 2. 检查是否已在 task.image_ids 中（已加入批次）
+            # 3. 检查是否在 section 中（正在分析）
+            # 4. 检查是否在 pending_queue 中（待分析）
             unique_input_ids = list(dict.fromkeys(image_ids))
+            
+            # 获取已加入批次的图片ID集合
+            existing_ids = set(task.image_ids)
             
             # 获取正在分析的图片ID集合（从 section）
             analyzing_ids = {item.id for item in task.section}
             
-            # 过滤：不在 image_ids 中，且不在 section（正在分析）中
+            # 获取待分析的图片ID集合（从 pending_queue）
+            # 注意：queue.Queue 不支持直接查看内容，需要通过其他方式
+            # 这里我们通过检查 image_ids 和 section 来判断
+            
+            # 过滤：不在 task.image_ids 中，且不在 section（正在分析）中
             new_ids = [
                 img_id for img_id in unique_input_ids
-                if img_id not in task.image_ids and img_id not in analyzing_ids
+                if img_id not in existing_ids and img_id not in analyzing_ids
             ]
             
             if not new_ids:
-                skipped_count = len(unique_input_ids) - len(new_ids)
-                self._logger.debug(
+                skipped_count = len(unique_input_ids)
+                self._logger.info(
                     f"[分析缓存] 所有图片已在批次中或正在分析: task_id={task.task_id}, "
-                    f"输入={len(unique_input_ids)}, 跳过={skipped_count}"
+                    f"输入={len(unique_input_ids)}, 跳过={skipped_count}, "
+                    f"批次总数={len(task.image_ids)}, 正在分析={len(analyzing_ids)}"
                 )
+                # 即使没有新图片，也返回 task_id，表示追加操作已处理（去重完成）
                 return task.task_id
             
             task.image_ids.extend(new_ids)

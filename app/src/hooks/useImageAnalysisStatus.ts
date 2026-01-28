@@ -12,6 +12,7 @@ import type { ImageAnalysisStatus } from '@/types/analysis'
  * @returns 图片分析状态，如果不存在则返回 null
  */
 export function useImageAnalysisStatus(imageId: number): ImageAnalysisStatus | null {
+  // 从当前批次的 imageStatuses 中查找图片状态
   const imageStatus = useAnalysisStore((s) => s.imageStatuses[imageId])
   return imageStatus || null
 }

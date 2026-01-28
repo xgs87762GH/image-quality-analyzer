@@ -25,27 +25,52 @@ export interface GetImagesResponse {
 }
 
 export interface AnalyzeImagesRequest {
-  image_ids: number[]
-  use_ai?: boolean
-  ai_model?: string
-  ai_api_key?: string
-  ollama_base_url?: string
-  ollama_model?: string
-  evaluation_questions?: string[]
-  aesthetic_mode?: string
-  write_xmp?: boolean
+  client_id: string
+  image_ids?: number[]  // 可选：空数组或不传表示分析全部
+  settings?: {
+    ai_model?: string
+    ai_api_key?: string
+    ollama_base_url?: string
+    ollama_model?: string
+    evaluation_questions?: string[]
+    aesthetic_mode?: string
+    write_xmp?: boolean
+    concurrentCount?: number
+  }
 }
 
 export interface AnalyzeImagesResponse {
   success: boolean
-  results?: Array<{
-    image_id: number
-    success: boolean
-    error?: string
-  }>
-  summary?: {
-    success: number
-    failed: number
+  data?: {
+    batch_id: string
+    total: number
+    pending_count: number
+    completed_count: number
+    failed_count: number
+    status: 'pending' | 'running' | 'completed' | 'failed'
+  }
+  error?: string
+}
+
+export interface BatchStatusResponse {
+  success: boolean
+  data?: {
+    batch_id: string
+    status: 'pending' | 'running' | 'completed' | 'failed'
+    total: number
+    pending_count: number
+    running_count: number
+    completed_count: number
+    failed_count: number
+    tasks?: Array<{
+      image_id: number
+      status: 'pending' | 'running' | 'completed' | 'failed'
+      progress?: number
+      result?: any
+      error?: string
+      completed_at?: string
+      started_at?: string
+    }>
   }
   error?: string
 }

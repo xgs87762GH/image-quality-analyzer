@@ -16,9 +16,31 @@ interface AnalysisProgressProps {
 
 export function AnalysisProgress({ className, floating }: AnalysisProgressProps) {
   const { t } = useTranslation('analysis')
-  const { isAnalyzing, isComplete, progress, completeData, error, reset } = useAnalysisStore()
+  const { isAnalyzing, isComplete, progress, completeData, error, reset, imageStatuses, lastUpdateTime } = useAnalysisStore()
 
-  if (!isAnalyzing && !isComplete && !error) return null
+  // 检查是否有超时的状态（超过 60 秒未更新）
+  const STALE_ANALYSIS_MS = 60_000
+  const now = Date.now()
+  const isStale = isAnalyzing && lastUpdateTime > 0 && (now - lastUpdateTime > STALE_ANALYSIS_MS)
+
+  // 检查错误状态是否是旧的（超过 5 分钟，或者没有正在进行的分析任务）
+  const OLD_ERROR_MS = 5 * 60 * 1000
+  const isOldError = error && !isAnalyzing && (
+    lastUpdateTime === 0 || (now - lastUpdateTime > OLD_ERROR_MS)
+  )
+  // 如果是旧错误，不显示它
+  const shouldShowError = error && !isOldError
+
+  // 检查是否有正在分析或待分析的图片（排除超时的状态）
+  const hasActiveAnalysis = !isStale && (
+    isAnalyzing || Object.values(imageStatuses).some(
+      status => status.status === 'analyzing' || status.status === 'pending'
+    )
+  )
+
+  // 如果没有活跃的分析任务、完成状态或有效错误，不显示进度条
+  // 如果状态已超时，也不显示
+  if ((!hasActiveAnalysis && !isComplete && !shouldShowError) || isStale) return null
 
   return (
     <div
@@ -37,7 +59,7 @@ export function AnalysisProgress({ className, floating }: AnalysisProgressProps)
         )}
       </div>
 
-      {error && (
+      {shouldShowError && (
         <p className="text-sm text-destructive">{error.error}</p>
       )}
 

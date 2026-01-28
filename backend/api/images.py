@@ -9,6 +9,8 @@ from services.service_factory import ServiceFactory
 from database.connection import get_db
 from repositories.image_repository import ImageRepository
 from repositories.metadata_repository import MetadataRepository
+from utils.logger import get_logger
+from backend.websocket.analysis_socket import start_analysis_batch
 
 
 def extract_camera_info_from_exif(metadata_dict: Dict[str, Any]) -> Dict[str, Any]:
@@ -81,6 +83,8 @@ def get_images():
         if rating is not None and rating <= 0:
             rating = None
         
+        # 获取数据库连接（在整个函数中重用同一个连接）
+        db = get_db()
         image_service = ServiceFactory.get_image_service()
         quality_service = ServiceFactory.get_quality_service()
         
@@ -95,7 +99,6 @@ def get_images():
             results = quality_service.find_by_quality_range(min_score, max_score)
         else:
             # 获取所有图像（不包括已删除的）
-            db = get_db()
             image_repo = ImageRepository(db)
             images = image_repo.list_all(limit=per_page * 2, offset=(page - 1) * per_page, include_deleted=False)
             metadata_repo = MetadataRepository(db)
@@ -106,34 +109,54 @@ def get_images():
                 if not file_path.exists():
                     continue
                 
-                quality = quality_service.quality_repo.find_by_image_id(img.id)
-                metadata = metadata_repo.find_by_image_id(img.id)
-                result_item = {
-                    'image': img.to_dict(),
-                    'quality': quality.to_dict() if quality else {}
-                }
-                if metadata:
-                    metadata_dict = metadata.to_dict()
-                    # 从 exif_data 中提取相机信息（如果存在）
-                    metadata_dict = extract_camera_info_from_exif(metadata_dict)
-                    result_item['metadata'] = metadata_dict
-                results.append(result_item)
+                try:
+                    quality = quality_service.quality_repo.find_by_image_id(img.id)
+                    metadata = metadata_repo.find_by_image_id(img.id)
+                    result_item = {
+                        'image': img.to_dict(),
+                        'quality': quality.to_dict() if quality else {}
+                    }
+                    if metadata:
+                        metadata_dict = metadata.to_dict()
+                        # 从 exif_data 中提取相机信息（如果存在）
+                        metadata_dict = extract_camera_info_from_exif(metadata_dict)
+                        result_item['metadata'] = metadata_dict
+                    results.append(result_item)
+                except Exception as e:
+                    # 单个图片的查询失败，记录但继续处理其他图片
+                    from utils.logger import get_logger
+                    logger = get_logger()
+                    logger.warning(f"[API] 获取图像 {img.id} 的详细信息失败: {e}")
+                    continue
                 
                 if len(results) >= per_page:
                     break
         
         # 为所有结果添加 metadata（如果缺失）
-        db = get_db()
-        metadata_repo = MetadataRepository(db)
-        for result_item in results:
-            if 'metadata' not in result_item and 'image' in result_item:
-                image_id = result_item['image'].get('id')
-                if image_id:
-                    metadata = metadata_repo.find_by_image_id(image_id)
-                    if metadata:
-                        metadata_dict = metadata.to_dict()
-                        metadata_dict = extract_camera_info_from_exif(metadata_dict)
-                        result_item['metadata'] = metadata_dict
+        # 注意：这里使用同一个 db 实例，避免重复创建连接
+        try:
+            metadata_repo = MetadataRepository(db)
+            for result_item in results:
+                if 'metadata' not in result_item and 'image' in result_item:
+                    image_id = result_item['image'].get('id')
+                    if image_id:
+                        try:
+                            metadata = metadata_repo.find_by_image_id(image_id)
+                            if metadata:
+                                metadata_dict = metadata.to_dict()
+                                metadata_dict = extract_camera_info_from_exif(metadata_dict)
+                                result_item['metadata'] = metadata_dict
+                        except Exception as e:
+                            # 单个 metadata 查询失败不影响整体结果
+                            from utils.logger import get_logger
+                            logger = get_logger()
+                            logger.warning(f"[API] 获取图像 {image_id} 的元数据失败: {e}")
+                            continue
+        except Exception as e:
+            # metadata 批量处理失败不影响主结果
+            from utils.logger import get_logger
+            logger = get_logger()
+            logger.warning(f"[API] 批量添加 metadata 失败: {e}")
         
         # 分页
         total = len(results)
@@ -154,10 +177,24 @@ def get_images():
             }
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        from utils.logger import get_logger
+        import sqlite3
+        logger = get_logger()
+        
+        # 检查是否是数据库错误
+        error_msg = str(e)
+        if isinstance(e, (sqlite3.OperationalError, sqlite3.DatabaseError)) or 'disk i/o' in error_msg.lower():
+            logger.error(f"[API] 数据库错误: {error_msg}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'error': '数据库操作失败，请稍后重试'
+            }), 500
+        else:
+            logger.error(f"[API] 获取图像列表失败: {error_msg}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
 
 
 @api_bp.route('/images/<int:image_id>', methods=['GET'])
@@ -353,6 +390,107 @@ def get_all_image_ids():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@api_bp.route('/images/analyze', methods=['POST'])
+def create_analysis_batch():
+    """
+    Create and start an analysis batch.
+
+    Request JSON:
+    {
+      "client_id": "xxx",          # required
+      "image_ids": [1,2,3],        # optional; if missing/empty => analyze all images
+      "settings": { ... }          # optional
+    }
+    """
+    logger = get_logger()
+    logger.info("API request: POST /api/images/analyze")
+
+    try:
+        payload = request.get_json() or {}
+        client_id = (payload.get("client_id") or "").strip()
+        settings = payload.get("settings") or {}
+        image_ids = payload.get("image_ids") or []
+
+        if not client_id:
+            return jsonify({"success": False, "error": "client_id is required"}), 400
+
+        # If image_ids not provided, analyze all non-deleted images
+        if not isinstance(image_ids, list) or len(image_ids) == 0:
+            db = get_db()
+            cursor = db.execute("SELECT id FROM images WHERE deleted_at IS NULL ORDER BY id")
+            image_ids = [row["id"] for row in cursor.fetchall()]
+
+        # Validate IDs
+        image_ids = [int(x) for x in image_ids if isinstance(x, (int, float)) or (isinstance(x, str) and str(x).isdigit())]
+        image_ids = [x for x in image_ids if x > 0]
+        if not image_ids:
+            return jsonify({"success": False, "error": "image_ids is empty"}), 400
+
+        # 动态导入 socketio，确保在 init_socketio 调用后获取
+        from backend.websocket import socketio as socketio_instance
+        
+        if not socketio_instance:
+            return jsonify({"success": False, "error": "socketio is not initialized"}), 500
+
+        batch_id = start_analysis_batch(
+            socketio=socketio_instance,
+            client_id=client_id,
+            image_ids=image_ids,
+            settings=settings,
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "batch_id": batch_id,
+                    "total": len(image_ids),
+                    "pending_count": len(image_ids),
+                    "completed_count": 0,
+                    "failed_count": 0,
+                    "status": "running",
+                },
+            }
+        )
+    except Exception as e:
+        logger.error(f"API response failed: POST /api/images/analyze, error={e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@api_bp.route('/images/analyze/<batch_id>', methods=['GET'])
+def get_analysis_batch_status(batch_id: str):
+    """Get current batch status by batch_id."""
+    logger = get_logger()
+    logger.info(f"API request: GET /api/images/analyze/{batch_id}")
+
+    try:
+        from backend.websocket.analysis_cache import analysis_cache
+
+        task = analysis_cache.get_task(batch_id)
+        if not task:
+            return jsonify({"success": False, "error": "batch_id not found"}), 404
+
+        tasks = list((analysis_cache.get_all_image_statuses(batch_id) or []))
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "batch_id": batch_id,
+                    "status": "completed" if task.is_complete else "running",
+                    "total": task.total,
+                    "pending_count": task.pending_queue.qsize(),
+                    "running_count": len(task.section),
+                    "completed_count": task.success_count,
+                    "failed_count": task.fail_count,
+                    "tasks": tasks,
+                },
+            }
+        )
+    except Exception as e:
+        logger.error(f"API response failed: GET /api/images/analyze/{batch_id}, error={e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @api_bp.route('/images/search', methods=['GET'])

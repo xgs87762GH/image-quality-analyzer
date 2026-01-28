@@ -1,6 +1,7 @@
 /**
  * 主布局组件（高内聚：布局逻辑集中）
  */
+import React from 'react'
 import { Outlet } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Sidebar } from './Sidebar'
@@ -19,6 +20,7 @@ const logger = getLogger('MainLayout')
 
 export function MainLayout() {
   const { startAnalysis } = useAnalysis()
+  const [isAnalyzingLoading, setIsAnalyzingLoading] = React.useState(false)
   const {
     analysisDialogOpen,
     setAnalysisDialogOpen,
@@ -55,13 +57,15 @@ export function MainLayout() {
           imageIdsToAnalyze = response.data.image_ids.filter((id): id is number => typeof id === 'number' && id > 0)
         } else {
           // 如果获取失败，提示用户
-          logger.error('获取图片ID列表失败: 响应不成功', { response })
+          logger.error('获取图片ID列表失败: 响应不成功', new Error(`响应不成功: ${JSON.stringify(response)}`))
           setAnalysisDialogOpen(false)
+          setIsAnalyzingLoading(false)
           return
         }
       } catch (error) {
         logger.error('获取图片ID列表失败', error instanceof Error ? error : new Error(String(error)))
         setAnalysisDialogOpen(false)
+        setIsAnalyzingLoading(false)
         return
       }
     }
@@ -70,6 +74,7 @@ export function MainLayout() {
       // 如果仍然没有图片，关闭对话框
       logger.warn('没有可分析的图片')
       setAnalysisDialogOpen(false)
+      setIsAnalyzingLoading(false)
       return
     }
 
@@ -96,19 +101,24 @@ export function MainLayout() {
             min: typeof q.min === 'number' ? q.min : 0,
             max: typeof q.max === 'number' ? q.max : 1,
           }
-        }
+        } 
         return base
       })
 
     const settings: Record<string, unknown> = {
       write_xmp: analysis.write_xmp,
-      use_ai: ai.use_ai,
-      ai_model: ai.ai_model,
-      ollama_base_url: ai.ollama_base_url,
-      ollama_model: ai.ollama_model,
-      ai_api_key: ai.ai_api_key || undefined,
       aesthetic_mode: analysis.aesthetic_mode,
       concurrentCount: 1,
+    }
+    
+    // 只有 AI 模式时才添加 AI 相关配置
+    if (analysis.aesthetic_mode === 'ai') {
+      settings.ai_model = ai.ai_model
+      settings.ollama_base_url = ai.ollama_base_url
+      settings.ollama_model = ai.ollama_model
+      if (ai.ai_api_key) {
+        settings.ai_api_key = ai.ai_api_key
+      }
     }
 
     // CLIP 模式不支持自定义评估问题，不传入
@@ -118,19 +128,31 @@ export function MainLayout() {
       settings.evaluation_questions = evaluation_questions
     }
 
+    setIsAnalyzingLoading(true)
     try {
-      startAnalysis(imageIdsToAnalyze, settings)
+      logger.info(`开始创建分析批次: ${imageIdsToAnalyze.length} 张图片`)
+      await startAnalysis(imageIdsToAnalyze, settings)
+      
+      // 成功创建批次后关闭对话框
       setAnalysisDialogOpen(false)
       
       // 关闭选择模式并清空选择
       setSelectionMode(false)
       clearSelection()
       
-      logger.info(`分析已开始: ${imageIdsToAnalyze.length} 张图片`)
+      logger.info(`分析批次已创建: ${imageIdsToAnalyze.length} 张图片`)
     } catch (error) {
-      logger.error('启动分析失败', error instanceof Error ? error : new Error(String(error)))
-      // 即使启动失败，也关闭对话框，让用户看到错误信息（如果有错误提示组件）
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      logger.error('启动分析失败', error instanceof Error ? error : new Error(errorMessage))
+      
+      // 错误信息已经通过 store 设置，会在 AnalysisProgress 组件中显示
+      // 关闭对话框，让用户看到错误信息（在进度条中显示）
       setAnalysisDialogOpen(false)
+      
+      // 可以选择显示一个 toast 通知（如果有 toast 组件）
+      // toast.error(errorMessage)
+    } finally {
+      setIsAnalyzingLoading(false)
     }
   }
 
@@ -145,10 +167,17 @@ export function MainLayout() {
       </div>
       <AnalysisDialog
         open={analysisDialogOpen}
-        onOpenChange={setAnalysisDialogOpen}
+        onOpenChange={(open) => {
+          setAnalysisDialogOpen(open)
+          // 对话框关闭时重置加载状态（防止状态残留）
+          if (!open) {
+            setIsAnalyzingLoading(false)
+          }
+        }}
         count={selectedImageIds.length}
         totalAll={totalAll}
         onConfirm={handleAnalyzeConfirm}
+        loading={isAnalyzingLoading}
       />
       <ImageDetailDialog
         imageId={selectedImageId}

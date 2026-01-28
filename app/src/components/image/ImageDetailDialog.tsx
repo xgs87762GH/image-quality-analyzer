@@ -98,14 +98,33 @@ export function ImageDetailDialog({ imageId, open, onOpenChange, onDelete }: Ima
                     <MetadataView metadata={detail.metadata} image={detail} />
                   </TabsContent>
                   <TabsContent value="ai">
-                    {detail.ai_analysis ? (
-                      <AIAnalysis
-                        aiAnalysis={detail.ai_analysis}
-                        evaluations={detail.evaluations}
-                      />
-                    ) : (
-                      <p className="text-muted-foreground text-sm">{t('detail.noAi')}</p>
-                    )}
+                    {(() => {
+                      // 检查是否有AI分析结果：ai_analysis 或 evaluations
+                      const hasAiAnalysis = !!detail.ai_analysis
+                      const hasEvaluations = detail.evaluations && (
+                        Array.isArray(detail.evaluations) ? detail.evaluations.length > 0 :
+                        typeof detail.evaluations === 'string' ? detail.evaluations.trim().length > 0 :
+                        false
+                      )
+                      // 也检查 metadata 中的 evaluations
+                      const hasMetadataEvaluations = detail.metadata?.evaluations && (
+                        Array.isArray(detail.metadata.evaluations) ? detail.metadata.evaluations.length > 0 :
+                        typeof detail.metadata.evaluations === 'string' ? detail.metadata.evaluations.trim().length > 0 :
+                        false
+                      )
+                      
+                      if (hasAiAnalysis || hasEvaluations || hasMetadataEvaluations) {
+                        // 合并 evaluations（优先使用顶层的，否则使用 metadata 中的）
+                        const evaluations = detail.evaluations || detail.metadata?.evaluations
+                        return (
+                          <AIAnalysis
+                            aiAnalysis={detail.ai_analysis || detail.metadata?.ai_analysis}
+                            evaluations={evaluations}
+                          />
+                        )
+                      }
+                      return <p className="text-muted-foreground text-sm">{t('detail.noAi')}</p>
+                    })()}
                   </TabsContent>
                 </Tabs>
               </div>

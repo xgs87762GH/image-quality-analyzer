@@ -10,6 +10,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { getAnalysisStatusClasses } from '@/hooks/useImageAnalysisStatus'
 import { AnalysisStatusIndicator } from '@/components/image/AnalysisStatusIndicator'
 import { useAnalysisStore } from '@/stores/analysisStore'
+import type { ImageAnalysisStatus } from '@/types/analysis'
 
 interface ImageListProps {
   images: ImageListItem[]
@@ -21,7 +22,7 @@ interface ImageListProps {
 export function ImageList({ images, selectedIds, selectionMode, onToggleSelect }: ImageListProps) {
   const { t } = useTranslation('image')
   const openImageDetail = useUIStore((s) => s.openImageDetail)
-  // 获取所有图片的状态（在组件顶层，不在循环内）
+  // 获取所有图片的状态（从当前批次）
   const imageStatuses = useAnalysisStore((s) => s.imageStatuses)
 
   return (

@@ -3,7 +3,7 @@
  */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Grid, List, CheckSquare } from 'lucide-react'
+import { Grid, List, CheckSquare, Sparkles, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ImageGrid } from '@/components/image/ImageGrid'
 import { ImageList } from '@/components/image/ImageList'
@@ -15,17 +15,24 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { useImages } from '@/hooks/useImages'
 import { useUIStore } from '@/stores/uiStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { imageApiService } from '@/services/api/images'
 import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
+import { getLogger } from '@/utils/logger'
+import { useQueryClient } from '@tanstack/react-query'
+
+const logger = getLogger('HomePage')
 
 export function HomePage() {
   const { t } = useTranslation('image')
-  const { viewMode, setViewMode, selectionMode, setSelectionMode, selectedImageIds, clearSelection } = useUIStore()
+  const { viewMode, setViewMode, selectionMode, setSelectionMode, selectedImageIds, clearSelection, setAnalysisDialogOpen } = useUIStore()
   const perPage = useSettingsStore((s) => s.general?.itemsPerPage ?? DEFAULT_PAGE_SIZE)
+  const queryClient = useQueryClient()
 
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [label, setLabel] = useState<string>('')
   const [rating, setRating] = useState<number | undefined>(undefined)
+  const [isCleaning, setIsCleaning] = useState(false)
 
   const { data, isLoading, error } = useImages({
     page,
@@ -52,16 +59,69 @@ export function HomePage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  const handleCleanup = async () => {
+    if (!confirm(t('list.confirmCleanup', { defaultValue: '确定要清理脏数据吗？这将删除源文件不存在的图片记录。' }))) {
+      return
+    }
+
+    setIsCleaning(true)
+    try {
+      const response = await imageApiService.cleanupImages()
+      if (response.success) {
+        logger.info(`清理完成: ${response.deleted_count || 0} 条脏数据`)
+        alert(t('list.cleanupSuccess', { 
+          count: response.deleted_count || 0,
+          defaultValue: `清理完成，删除了 ${response.deleted_count || 0} 条脏数据`
+        }))
+        // 刷新图片列表
+        await queryClient.invalidateQueries({ queryKey: ['images'] })
+      } else {
+        logger.error('清理失败', new Error(response.error || '未知错误'))
+        alert(t('list.cleanupError', { 
+          error: response.error || '未知错误',
+          defaultValue: `清理失败: ${response.error || '未知错误'}`
+        }))
+      }
+    } catch (error) {
+      logger.error('清理失败', error instanceof Error ? error : new Error(String(error)))
+      alert(t('list.cleanupError', { 
+        error: error instanceof Error ? error.message : String(error),
+        defaultValue: `清理失败: ${error instanceof Error ? error.message : String(error)}`
+      }))
+    } finally {
+      setIsCleaning(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* 工具栏 */}
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
             onSearch={handleSearch}
           />
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setAnalysisDialogOpen(true)}
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            {t('list.analyze', { defaultValue: '分析图片' })}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCleanup}
+            disabled={isCleaning}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {isCleaning ? t('list.cleaning', { defaultValue: '清理中...' }) : t('list.cleanup', { defaultValue: '清理脏数据' })}
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
           <Button
             variant={selectionMode ? 'default' : 'outline'}
             size="sm"

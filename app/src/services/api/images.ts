@@ -2,7 +2,7 @@
  * 图像 API 服务（高内聚：图像相关 API 调用集中）
  */
 import { apiClient } from './client'
-import type { GetImagesParams, GetImagesResponse, AnalyzeImagesRequest, AnalyzeImagesResponse } from '@/types/api'
+import type { GetImagesParams, GetImagesResponse, AnalyzeImagesRequest, AnalyzeImagesResponse, BatchStatusResponse } from '@/types/api'
 import type { ImageListItem, ImageDetail } from '@/types/image'
 
 export class ImageApiService {
@@ -56,10 +56,32 @@ export class ImageApiService {
   }
 
   /**
-   * 分析图像
+   * 创建分析批次（新 API）
+   */
+  async createAnalysisBatch(request: AnalyzeImagesRequest): Promise<AnalyzeImagesResponse> {
+    return apiClient.post<AnalyzeImagesResponse['data']>('/api/images/analyze', request)
+  }
+
+  /**
+   * 获取批次状态
+   */
+  async getBatchStatus(batchId: string): Promise<BatchStatusResponse> {
+    return apiClient.get<BatchStatusResponse['data']>(`/api/images/analyze/${batchId}`)
+  }
+
+  /**
+   * 分析图像（旧方法，保留兼容性）
+   * @deprecated 使用 createAnalysisBatch 代替
    */
   async analyzeImages(request: AnalyzeImagesRequest): Promise<AnalyzeImagesResponse> {
-    return apiClient.post<AnalyzeImagesResponse['results']>('/api/images/analyze', request)
+    return this.createAnalysisBatch(request)
+  }
+
+  /**
+   * 清理脏数据：删除源文件不存在的图片记录
+   */
+  async cleanupImages(): Promise<{ success: boolean; message?: string; deleted_count?: number; error?: string }> {
+    return apiClient.post<{ message: string; deleted_count: number }>('/api/images/cleanup')
   }
 }
 

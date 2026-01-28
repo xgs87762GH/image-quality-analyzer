@@ -270,6 +270,54 @@ class WebSocketService {
   }
 
   /**
+   * 发送心跳请求（统一消息格式）
+   * 
+   * @param batchId - 批次ID（可选）
+   */
+  sendHeartbeat(batchId?: string | null): void {
+    if (!this.socket?.connected) {
+      logger.warn('WebSocket 未连接，无法发送心跳')
+      return
+    }
+
+    const payload = {
+      type: 'image_analysis',
+      data: {
+        batch_id: batchId || null,
+        timestamp: Date.now(),
+      },
+    }
+
+    try {
+      this.socket.emit('heartbeat', payload)
+      logger.debug('发送心跳请求', { batchId })
+    } catch (error) {
+      logger.error('发送心跳请求失败', error instanceof Error ? error : new Error(String(error)))
+    }
+  }
+
+  /**
+   * 监听统一批次更新消息（batch_update 事件）
+   * 
+   * @param callback - 回调函数，接收统一消息格式：{ type, code, message, data }
+   */
+  onBatchUpdate(callback: (message: { type: string; code: string; message: string; data: any }) => void): void {
+    if (!this.socket) {
+      logger.warn('WebSocket 未初始化，无法监听批次更新')
+      return
+    }
+
+    this.socket.on('batch_update', (message: { type: string; code: string; message: string; data: any }) => {
+      try {
+        logger.debug('[WebSocket] 收到批次更新:', message)
+        callback(message)
+      } catch (error) {
+        logger.error('处理批次更新回调失败', error instanceof Error ? error : new Error(String(error)))
+      }
+    })
+  }
+
+  /**
    * 移除事件监听器
    * 
    * @param event - 事件名称
@@ -283,6 +331,21 @@ class WebSocketService {
         logger.error(`移除事件监听器失败: ${event}`, error instanceof Error ? error : new Error(String(error)))
       }
     }
+  }
+
+  /**
+   * 监听事件（通用方法）
+   * 
+   * @param event - 事件名称
+   * @param callback - 回调函数
+   */
+  on(event: string, callback: (...args: unknown[]) => void): void {
+    if (!this.socket) {
+      logger.warn('WebSocket 未初始化，无法监听事件')
+      return
+    }
+
+    this.socket.on(event, callback)
   }
 }
 
